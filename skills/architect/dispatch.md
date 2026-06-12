@@ -157,7 +157,10 @@ browser launch), record the exact failure in your lane report and route
 around it — never busy-wait or retry in a loop. When done, write your lane report to
 docs/lanes/<slice>-<lane>.md with RAW results only — tables, numbers, command
 output — no interpretation, no "promising". Every status claim must be backed
-by a command result from this run. Verdicts belong to the architect and the
+by a command result from this run. Keep the report compact — tables and
+numbers, not prose. End it with exactly one status line:
+STATUS: COMPLETE | COMPLETE_WITH_CONCERNS (list them) | BLOCKED (exact
+blocker + what you tried). Verdicts belong to the architect and the
 human. Persist until your lane is fully handled end-to-end; do not stop at
 analysis or partial fixes.
 

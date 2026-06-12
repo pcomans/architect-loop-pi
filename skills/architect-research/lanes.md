@@ -7,7 +7,11 @@ preamble, then the lane-specific objective:
 You are a web research agent. Answer ONE assigned objective. Do not write code,
 do not make recommendations — judgment belongs to the orchestrator reading your
 output. Budget: <N> searches; if two consecutive searches yield no new
-load-bearing facts, stop and return. OUTPUT: markdown findings — every finding
+load-bearing facts, stop and return. HARD CONTEXT RULES: never open a full
+page when the search snippet answers the question; quote at most 2 sentences
+per source; the moment you can answer, STOP and write your findings — partial
+findings beat context exhaustion (researchers that fill their window die
+without writing anything). OUTPUT: markdown findings — every finding
 carries source URL, source date, the exact figure or a short direct quote, and
 a confidence tag (high = primary source / med = reputable secondary / low =
 single blog or forum post). Prefer primary sources. Record exact version
@@ -16,6 +20,13 @@ resolve it. If you cannot find evidence, write NOT FOUND — never fill gaps fro
 prior knowledge without flagging it. End with the 2-3 findings most likely to
 change a design decision.
 ```
+
+**Lane scoping rule (learned 2026-06-12):** cap each researcher at ~5 subjects
+(repos, vendors, people). Doc-heavy lanes burn the context window on fetched
+pages — two of nine researchers in one session died of context exhaustion
+before writing any findings. A researcher that dies returns NOTHING (`-o`
+only materializes on a clean finish). If a lane dies this way, bisect it into
+narrower lanes and re-dispatch; don't re-run it as-is.
 
 ## Lane 1 — Academic (latest papers)
 

@@ -61,6 +61,9 @@ commands and the builder block template: `dispatch.md` next to this file.
 - Read `docs/HANDOFF.md` in full plus every `docs/gates/` file it references.
   If missing, create both from `HANDOFF.template.md` (next to this file), fill
   the header from the repo, ask the human only for what isn't derivable.
+  Keep the handoff a short table of contents (~150 lines): TL;DR + pointers
+  to gates/lanes/docs; archive finished-slice detail out of it each session —
+  a monolithic memory file rots and crowds out the task.
 - Scale to the task: trivial fixes don't need the loop — say so and let the
   human do it inline or in a normal session. The loop is for slice-sized work.
 
@@ -75,6 +78,9 @@ For each gate of the last slice: run the gate command yourself, compare the
 output against the verbatim frozen gate text → **PASS / FAIL / INVALID**
 (INVALID = not measured the way the gate specifies). Check `git diff` on
 `docs/gates/` since the freeze commit — any change is an automatic FAIL.
+Gate-pass is necessary, not sufficient: read the diff against the spec's
+intent before the verdict — agents' test-passing changes are frequently
+unmergeable, and iterating against visible tests is a known gaming vector.
 Then one slice-level call: **KILL / CONTINUE**, with the single decisive reason.
 For high-stakes slices (schema/API/persistence/security), add a cross-model
 review before the verdict: `codex review --base <branch>` or a fresh-context
