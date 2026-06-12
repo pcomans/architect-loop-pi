@@ -92,10 +92,10 @@ correctness/requirement/invariant gaps with file:line evidence, no style.
 Two scales, two routes:
 
 - **Discovery scale** — brainstorming what to build, technology selection,
-  state-of-the-art surveys → invoke the `/architect-research` skill (five-lane
-  fan-out: academic papers, popular repos, cutting-edge repos, production-grade
-  design patterns, general web; verified + synthesized into
-  `docs/research/<topic>.md`). Its report then distills into the PRD.
+  state-of-the-art surveys → invoke the `/architect-research` skill (a scout
+  researcher maps the topic, the orchestrator designs topic-specific parallel
+  researcher lanes, claims verified against sources, synthesized into a cited
+  report). Its report then distills into the PRD.
 - **Slice scale** — run the inline fan-out below only when at least one trigger
   holds: (a) the slice depends on external APIs, libraries, or versions not
   already used in this repo; (b) a narrow approach choice needs facts neither

@@ -35,6 +35,10 @@ stdin otherwise.
   fanning out — these flags have churned three times in 2026 alone.
 - Effort `high`, not `xhigh` — research is coverage work; xhigh buys nothing
   here. Synthesis happens on the architect's side.
+- Scope each researcher to ≤5 subjects and put hard context rules in the
+  block (snippet over page; quote ≤2 sentences; stop the moment you can
+  answer) — a researcher that fills its context window dies without writing
+  its output file. Bisect and re-dispatch dead lanes; don't re-run as-is.
 - Optionally pin `[tools.web_search] allowed_domains` in config for
   prompt-injection-sensitive repos.
 

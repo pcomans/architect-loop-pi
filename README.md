@@ -1,12 +1,11 @@
 # architect-loop
 
-**Claude Fable is your architect. GPT-5.5 Codex is your builder. The repo is the
-only memory.** Two Claude Code skills that run the cross-vendor agent loop on
-flat-rate subscriptions — no API keys, no token bills.
-
-> Fable thinks, Codex builds, the repo remembers, you judge.
-
----
+**Claude Fable is the architect — it designs every slice, freezes the
+acceptance gates, and judges the results. GPT-5.5 Codex is the builder and
+researcher — it does all the engineering and all the web research, in
+parallel, unattended, for hours.** Two Claude Code skills that run this
+cross-vendor loop on the flat-rate subscriptions you already have — no API
+keys, no token bills.
 
 ## Install (30 seconds)
 
@@ -16,137 +15,122 @@ cd architect-loop && ./install.sh        # Windows: .\install.ps1
 npm i -g @openai/codex@latest            # the builder (Codex CLI >= 0.133)
 ```
 
-That's it. `./install.sh --project` installs to the current repo only instead
-of globally. You need [Claude Code](https://claude.com/claude-code) on any paid
+`./install.sh --project` installs to the current repo only instead of
+globally. You need [Claude Code](https://claude.com/claude-code) on any paid
 plan and the Codex CLI signed into a ChatGPT plan.
 
 ## Use (two commands)
 
-In any repo, inside Claude Code:
-
 ```
-/architect
-```
-
-**The main event.** One short Fable session per work block: it judges the last
-run's evidence against frozen gates, splits the next one-PR slice into 1–4
-lanes with disjoint file sets, and dispatches **one fresh `codex exec` builder
-per lane, each in its own git worktree, all in parallel** — then reviews,
-commits, and merges each lane when they finish. Builders run unattended for
-hours; Fable's judgment costs minutes.
-
-```
-/architect-research <what you're thinking about building>
+/architect                                      # the build loop
+/architect-research <what you're considering>   # the research loop
 ```
 
-…when you're **brainstorming or picking a technology** first. Fans out
-parallel Codex web-researchers across six lanes, verifies every claim against
-sources, and writes a cited, decision-oriented report to `docs/research/`
-that feeds the build loop's PRD.
+`/architect` runs one work block: judge the last run, spec the next slice,
+dispatch builders. `/architect-research` is for when you're still deciding
+*what* to build — its cited report feeds the build loop's PRD.
 
----
+## /architect
 
-## How it works in one picture
+![/architect flow](assets/architect-flow.png)
 
-![/architect — the loop](assets/loop-diagram.png)
+One short Fable session per work block — judgment only, it never writes code:
 
-One architect session per work block: **rule on disagreements → judge the last
-run's raw evidence against frozen gates → split the next slice into 1–4 lanes
-with disjoint file sets → freeze gates, commit, dispatch → per-lane tamper +
-boundary checks → commit, merge, smoke-run gates → verdict next session →
-main.** (Optional first step when you're still deciding what to build:
-`/architect-research` feeds the PRD.)
+- **Spec + gates first.** Fable specs a one-PR slice, splits it into 1–4
+  lanes with provably disjoint file sets, and commits the acceptance gates to
+  `docs/gates/` *before* any builder starts. Gates are read-only; a builder
+  edit to a gate file fails the slice automatically.
+- **Parallel isolated builders.** One fresh `codex exec` (xhigh) per lane,
+  each in its own git worktree. Builders must argue with the spec before
+  building (silent compliance = defect), build only their declared files,
+  and report raw results — they physically can't commit (the sandbox
+  protects `.git`).
+- **Fable judges and integrates.** It runs the gate commands itself (builder
+  claims are hearsay), reads the diff against the spec's intent (passing
+  tests ≠ mergeable work), then commits and merges passing lanes. Judgment
+  happens in a fresh session — cross-context review measurably beats
+  same-session review.
+- **The repo is the only memory.** `docs/HANDOFF.md` (a short table of
+  contents, pruned every session), `docs/gates/`, `docs/lanes/`, git
+  history. Not in the repo = didn't happen.
+- **Supervision built in.** Liveness checks on dispatched runs, stall triage
+  (diagnose the child process tree, kill the narrowest thing), explicit
+  timeouts on every long command.
 
-**Who does what:**
+## /architect-research
 
-| | Model | Effort | Job |
-|---|---|---|---|
-| Architect | Claude Fable | `high` (pinned by the skill) | judgment only: arbitration, judging evidence, lane-splitting, review + merge, kill/continue |
-| Builders | 1–4 parallel GPT-5.5 `codex exec` agents, one git worktree each | `xhigh` (architect may dial per lane) | implementation, hours at a time, unattended, own files only |
-| Researchers | GPT-5.5 via `codex exec -c web_search="live"` | `high` | gathering only — never recommendations |
-| Memory | the repo | — | `docs/HANDOFF.md`, `docs/gates/`, `docs/lanes/`, `docs/research/`, git history |
-| You | human | — | read the handoff between blocks; kill/continue authority |
+![/architect-research flow](assets/research-flow.png)
 
-## Why this shape works
+Scout-first, like the production deep-research systems — no fixed lane
+taxonomy:
 
-Every serious source on agent harnesses — Anthropic's harness-engineering
-posts, the most-installed community skills, the reward-hacking literature —
-converged on the same four moves, and this loop enforces all of them
-mechanically:
+- **A cheap Codex scout maps the topic** (~10 searches): canonical
+  terminology, the load-bearing systems and papers, the named people, the
+  topic's natural fault lines. Skipped for comparisons and fact-finds.
+- **Fable designs 3–6 topic-specific lanes** from the scout's map, drawing
+  per-source-class tactics from a library (academic citation snowballing,
+  dependents-not-stars repo evidence, emerging-vs-hype gating, production
+  pattern mining, expert tracking) — checked for overlap and gaps before
+  dispatch.
+- **Parallel Codex researchers** run under hard budgets: search caps, ≤5
+  subjects per lane, saturation stop, strict findings discipline (URL + date
+  + quote + confidence tag; NOT FOUND beats inference; no recommendations).
+  Expert opinion runs as a second wave, roster-seeded by the first.
+- **Fable verifies and writes.** ≥2 independent sources per load-bearing
+  claim, adversarial falsification searches, citations only from URLs
+  actually fetched — then one author writes one decision-oriented report.
+  Gathering parallelizes; synthesis never does.
 
-1. **Not in `docs/HANDOFF.md` = didn't happen.** State lives in the repo, not
-   the chat. That's why 5 minutes of architect time per block is enough.
-2. **Gates freeze before results exist.** Acceptance criteria are committed to
-   `docs/gates/` *before* dispatch; a builder edit to any gate file (caught by
-   `git diff`) fails the slice automatically. No goalpost-moving, by
-   construction.
-3. **Nobody grades their own work.** The builder reports raw numbers only;
-   the architect runs the gate commands itself; cross-model review for
-   high-stakes slices. Different models from different labs = no same-model
-   sycophancy.
-4. **Disagreement is mandatory.** The builder must challenge the spec (citing
-   real files) before writing code — silent compliance is a defect. The
-   architect rules on every disagreement: ACCEPT / REJECT / MODIFY + why.
-5. **Fresh context per lane, worktree isolation between lanes.** Every lane
-   is a new Codex process in its own git worktree — no context rot, no file
-   collisions, and builders physically can't commit (the sandbox protects
-   `.git`), so nothing reaches a branch until the architect's checks pass.
-   If a lane breaks: discard the worktree, re-dispatch. Code is cheap;
-   rescue prompting isn't.
+## Why this shape
 
-The economics: judgment minutes on the expensive model, typing hours on the
-flat-rate one. Both halves run on subscriptions you already have.
+Each piece is there because evidence put it there (full citations in
+[DESIGN.md](DESIGN.md)):
 
-## The optional research skill
-
-`/architect-research` is the discovery-scale companion for when you're still
-deciding *what* to build. Scout-first, like the production deep-research
-systems: one cheap Codex scout maps the topic's terrain, Fable designs
-topic-specific researcher lanes from that map (drawing on a source-class
-tactics library — academic snowballing, dependents-not-stars repo evidence,
-production pattern mining, expert tracking), then parallel Codex researchers
-fan out under hard budgets. ≥2 independent sources per load-bearing claim,
-citations only from URLs actually fetched. Fable verifies and writes one
-cited, decision-oriented report that feeds `/architect`'s PRD. Methodology:
-[skills/architect-research/SKILL.md](skills/architect-research/SKILL.md).
+- Weak planners hurt more than weak executors — so the strongest model does
+  the design, and builders get exhaustive specs.
+- Manager + worktree-isolated workers is the measured-best topology for
+  shared-artifact software work; naive shared-file coordination collapses
+  throughput.
+- Frozen external gates beat trusting the agent — but agents game visible
+  tests and their passing PRs are frequently unmergeable, so the architect
+  also reads the diff.
+- Memory files rot — so the handoff stays a short map, and detail lives in
+  linked gate/lane files.
+- Every production deep-research system uses planner-designed decomposition,
+  none uses fixed lanes — so research lanes are designed per topic, after a
+  scout pass.
 
 ## What's in the box
 
 | File | What it is |
 |---|---|
-| [DESIGN.md](DESIGN.md) | **The design document** — 12 enforced rules, failure-mode table, ~40 cited sources |
+| [DESIGN.md](DESIGN.md) | The design document — 12 enforced rules, failure-mode table, cited sources |
 | [skills/architect/SKILL.md](skills/architect/SKILL.md) | The architect role: hard rules + procedure |
-| [skills/architect/dispatch.md](skills/architect/dispatch.md) | Verified `codex exec` commands + the PHASE 0/1/2 builder block |
+| [skills/architect/dispatch.md](skills/architect/dispatch.md) | Verified `codex exec` commands, builder block, worktree fan-out, stall triage |
 | [skills/architect/research.md](skills/architect/research.md) | Slice-scale inline fact-check fan-out |
-| [skills/architect/HANDOFF.template.md](skills/architect/HANDOFF.template.md) | The repo-memory file the builder maintains |
-| [skills/architect-research/SKILL.md](skills/architect-research/SKILL.md) | Discovery research: brief → plan → fan-out → verify → synthesize |
+| [skills/architect/HANDOFF.template.md](skills/architect/HANDOFF.template.md) | The repo-memory file |
+| [skills/architect-research/SKILL.md](skills/architect-research/SKILL.md) | Research orchestration: scout → design → fan out → verify → write |
 | [skills/architect-research/lanes.md](skills/architect-research/lanes.md) | Scout block + source-class tactics library with verified endpoints |
+| [tests/validate_skills.py](tests/validate_skills.py) | Repo sanity checks (frontmatter limits, links, fences) |
 
 ## FAQ
 
-**Do I need API keys?** No. Claude Code runs on your Claude plan; Codex CLI on
-your ChatGPT plan. (Optional: `CODEX_API_KEY` per-token billing for overnight
-runs that must not hit subscription rate windows.)
+**Do I need API keys?** No. Claude Code runs on your Claude plan; Codex CLI
+on your ChatGPT plan.
 
-**What does a builder run cost?** It draws on your ChatGPT plan's 5-hour and
-weekly quotas. Community reference points: a 6.5-hour autonomous run ≈ 20% of
-a $100-tier weekly quota.
+**What does a run cost?** Builder/researcher runs draw on your ChatGPT
+plan's 5-hour and weekly quotas; a multi-hour run is a meaningful fraction
+of a weekly window. Fable's architect sessions are minutes, not hours.
 
-**What if the builder wrecks the repo?** One slice per run + a commit per lane
-means `git reset` to the freeze commit and re-dispatch. The handoff records
-what went wrong so the next spec avoids it.
+**What if a builder wrecks things?** Nothing reaches a branch until the
+architect's tamper, boundary, and gate checks pass — worktrees are
+discarded and re-dispatched from the freeze commit.
 
-**Can I watch the builder work?** Yes — `/architect` always prints the builder
-block, so instead of the background dispatch you can paste it into an
-interactive `codex` session prefixed with `/goal` and babysit the run.
+**Can I watch a run?** Yes — every dispatch prints the builder block, so you
+can paste it into an interactive `codex` session with `/goal` instead.
 
 **Why two skills?** Research-grade fan-out costs ~15× chat-level tokens — it
-should be a deliberate act, not a side-effect of the build loop. `/architect`
-still does small inline fact-checks on its own.
-
-**Where do the rules come from?** [DESIGN.md](DESIGN.md) — every rule cites
-its source (Anthropic engineering, the Fable prompting guide, verified Codex
-CLI docs, superpowers, the Ralph loop, the reward-hacking literature).
+should be a deliberate act, not a side-effect of the build loop.
 
 ## License
 

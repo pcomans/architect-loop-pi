@@ -32,6 +32,7 @@ freeze — for everyone, including the builder.]
 
 - Spec: [link or one-line summary]
 - Gates: docs/gates/[slice].md (frozen at commit [sha] BEFORE work began)
+- Lanes: [1 | N disjoint lanes — file sets; reports in docs/lanes/[slice]-[lane].md]
 - Effort: [xhigh | high] — [why]
 
 | Gate | Command | Threshold | Raw result | Architect verdict |
