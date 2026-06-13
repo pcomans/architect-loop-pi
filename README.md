@@ -14,13 +14,26 @@ anything is integrated.
 > upstream [DanMcInerney/architect-loop](https://github.com/DanMcInerney/architect-loop)
 > runs the same loop on flat-rate Codex instead.
 
-## Install (30 seconds)
+## Install
+
+**Option A — DevPod (recommended)**
 
 ```bash
-git clone https://github.com/DanMcInerney/architect-loop
-cd architect-loop && ./install.sh        # Windows: .\install.ps1
-npm i -g --ignore-scripts @earendil-works/pi-coding-agent   # the builder (pi)
-export DEEPSEEK_API_KEY=sk-...            # see dispatch.md to use GLM/Kimi/etc.
+export DEEPSEEK_API_KEY=sk-...   # forwarded into the container automatically
+devpod up https://github.com/pcomans-bot/architect-loop-pi --ide none
+```
+
+The devcontainer handles Node 22, Python, `pi` install, and `./install.sh`
+automatically. Copy `.env.example` → `.env` inside the workspace for
+persistent keys; see `.env.example` for all variables.
+
+**Option B — Manual**
+
+```bash
+git clone https://github.com/pcomans-bot/architect-loop-pi
+cd architect-loop-pi && ./install.sh     # Windows: .\install.ps1
+npm i -g --ignore-scripts @earendil-works/pi-coding-agent
+export DEEPSEEK_API_KEY=sk-...           # see dispatch.md to use GLM/Kimi/etc.
 ```
 
 `./install.sh --project` installs to the current repo only instead of globally.
