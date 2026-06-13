@@ -1,13 +1,13 @@
 # DESIGN — The Architect Loop v2
 
-**A research-backed design for a Claude Code harness skill in which Claude Fable 5
+**A source-backed design for a Claude Code harness skill in which Claude Fable 5
 (high effort) acts as architect/orchestrator and GPT-5.5 via Codex CLI (xhigh
 reasoning) acts as builder, with the repo as the only memory.**
 
 Researched June 2026 from Anthropic engineering posts, the official Fable 5 and
-Codex CLI documentation, and the most-used community harness skills. Every
-prescription below cites its source. This document is the "why"; the skill files
-in `skills/architect/` are the "how".
+Codex CLI documentation, and widely used community harness skills. Prescriptive
+claims below cite their sources. This document is the "why"; the skill files in
+`skills/architect/` are the "how".
 
 ---
 
@@ -28,27 +28,28 @@ Single-agent coding sessions degrade in three predictable ways:
 3. **Goalpost drift** — acceptance criteria written (or edited) after results
    exist always pass.
 
-The fix that every serious source converged on independently — Anthropic's
+The sources surveyed point to the same basic shape — Anthropic's
 [harness design post](https://www.anthropic.com/engineering/harness-design-long-running-apps),
-obra/superpowers' subagent-driven development, the Ralph loop, GitHub Spec Kit —
-is the same shape:
+obra/superpowers' subagent-driven development, the Ralph loop, and GitHub Spec
+Kit:
 
 > **Separate planning context from execution context. Persist state in the repo,
 > not the conversation. Dispatch fresh-context workers per task. Verify with an
 > agent that didn't write the code.**
 
 This loop adds one more separation on top: **cross-vendor judgment**. The builder
-and the judge are different models from different labs, which removes same-model
-sycophancy bias from review ([OpenAI's own pitch for the Codex↔Claude
-bridge](https://www.mindstudio.ai/blog/openai-codex-plugin-claude-code-cross-provider-review))
-and lets each model do what it measurably does best: GPT-5.5 leads Terminal-Bench
-2.0 (82.7%) for hands-on building; Fable 5 is Anthropic's strongest long-horizon
-judgment model, with ~3× gains on complex tasks when paired with persistent
-file-based memory ([Fable 5 announcement](https://www.anthropic.com/news/claude-fable-5-mythos-5)).
+and the judge are different models from different labs, which reduces
+same-model review bias ([OpenAI's own pitch for the Codex↔Claude
+bridge](https://www.mindstudio.ai/blog/openai-codex-plugin-claude-code-cross-provider-review)).
+The split also lines up with available benchmark claims: GPT-5.5 leads
+Terminal-Bench 2.0 (82.7%) for hands-on terminal work, while Anthropic positions
+Fable 5 for long-horizon judgment and persistent file-based memory
+([Fable 5 announcement](https://www.anthropic.com/news/claude-fable-5-mythos-5)).
 
-The economics also work: judgment minutes on the expensive model, typing hours on
-the flat-rate one. Community measurements of orchestrator/worker splits report
-58–74% cost savings versus running the top model end-to-end
+The economics are another reason for the split: judgment minutes on the expensive
+model, typing hours on the flat-rate one. Community measurements of
+orchestrator/worker splits report 58–74% lower cost versus running the top model
+end-to-end
 ([Fable 5 Orchestrator Playbook](https://www.developersdigest.tech/blog/fable-5-orchestrator-model-playbook)).
 
 ---
@@ -83,7 +84,7 @@ the spec records explicitly.
 
 ## 3. The twelve design rules
 
-Each rule below is enforced mechanically by the skill, not left to vibes.
+Each rule below is enforced mechanically by the skill, not left as advice.
 
 ### R1. Repo docs are the memory; not in `HANDOFF.md` = didn't happen
 Anthropic's long-running-agent harnesses use a progress file + git history as
@@ -170,7 +171,7 @@ git worktree per agent, and a practical ceiling of 2–4 lanes before coordinati
 overhead dominates ([Intility engineering](https://engineering.intility.com/article/agent-teams-or-how-i-learned-to-stop-worrying-about-merge-conflicts-and-love-git-worktrees),
 [MindStudio worktrees](https://www.mindstudio.ai/blog/git-worktrees-parallel-ai-coding-agents)).
 **The architect — not Codex — owns the fan-out.** The spec splits the slice
-into 1–4 lanes with provably disjoint file sets; each lane is an isolated
+into 1–4 lanes whose file sets are checked for overlap; each lane is an isolated
 worktree running its own `codex exec` process, writing its own lane report
 (`docs/lanes/`); the architect runs per-lane boundary checks (`git status`
 must show only declared files), commits each passing lane, and merges
@@ -349,8 +350,8 @@ so it must be deliberately invoked, never a side-effect. The loop's step 3
 routes: discovery scale → `/architect-research`; narrow slice facts → the
 inline fan-out above.
 
-`/architect-research` encodes the methodology the best deep-research systems
-converged on. As of v2.3 the decomposition is **scout-first and
+`/architect-research` encodes the methodology found across the surveyed
+deep-research systems. As of v2.3 the decomposition is **scout-first and
 topic-designed, not a fixed lane taxonomy** — a 2026-06 evidence review found
 all five production deep-research systems (OpenAI DR, Anthropic, Gemini,
 Perplexity, Kimi) use adaptive planner-driven decomposition and none uses
@@ -365,7 +366,7 @@ became a tactics library the orchestrator draws from when designing lanes:
   codex scout (~10 searches) maps terminology, load-bearing
   systems, named people, and the topic's natural fault lines; the architect
   then designs 3–6 topic-specific lanes from that map. Source-derived
-  perspective discovery is STORM's biggest measured lever (unique references
+  perspective discovery was STORM's largest measured lever (unique references
   99.83 vs 54.36 without it); Anthropic's lead agent and OpenAI/Gemini's
   user-visible research plans are the production analogs. Comparisons and
   fact-finds skip the scout — recon that tells you nothing is pure latency.
@@ -449,10 +450,10 @@ became a tactics library the orchestrator draws from when designing lanes:
   multi-block runs, the dispatch step composes with `claude -p` / scheduled
   jobs, but that's an extension, not the default (and note `claude -p` draws on
   separate Agent SDK credits from June 15, 2026).
-- **Not Goal-Mode-in-a-trenchcoat.** Codex's Goal Mode already loops
-  plan→act→test→review against a stopping condition. This design's value-add is
-  everything Goal Mode can't do: cross-model judgment, frozen external gates,
-  arbitration, and repo-resident memory across runs.
+- **Not just Goal Mode.** Codex's Goal Mode already loops
+  plan→act→test→review against a stopping condition. This design adds extra
+  separation around Goal Mode: cross-model judgment, frozen external
+  gates, arbitration, and repo-resident memory across runs.
 
 ---
 

@@ -40,16 +40,16 @@ the final report so the reader can audit scope drift.
 
 ### 2. Scout, then design the lanes
 
-Every production deep-research system and 4/5 leading OSS frameworks use
-LLM-designed, topic-specific decomposition — none uses a fixed lane taxonomy.
-Lanes are designed per topic, not taken from a template.
+The surveyed production deep-research systems and 4/5 leading OSS frameworks
+use LLM-designed, topic-specific decomposition rather than a fixed lane
+taxonomy. Lanes are designed per topic, not taken from a template.
 
 **Scout (brainstorm scale only):** dispatch ONE cheap researcher (~10
 searches, same codex command as step 3) to map the terrain: canonical
 terminology, the 5–10 load-bearing systems/papers/repos, the named people,
 which source classes look rich vs empty, and the topic's natural fault lines.
 The scout returns a map, not findings — discovering the topic's actual
-perspectives from sources is what nearly doubled source diversity in STORM's
+perspectives from sources substantially increased source diversity in STORM's
 ablations. Skip the scout when you already know the terrain (comparisons,
 fact-finds) — an upfront pass that tells you nothing new is pure latency.
 

@@ -126,8 +126,8 @@ One-PR-sized. The spec is the full delegation contract, self-contained:
 - **Boundaries** — files it may touch, files it must not, explicit
   out-of-scope list, "no placeholders; search before implementing",
   no refactors beyond the task.
-- **Lane plan** — split the slice into 1–4 parallel lanes with **provably
-  disjoint file-touch sets**: list every file each lane may touch; any overlap
+- **Lane plan** — split the slice into 1–4 parallel lanes with **file-touch
+  sets checked for overlap**: list every file each lane may touch; any overlap
   means those lanes run as one. Each lane gets its own objective, output
   format, and boundaries. Most slices are one lane — fan out only when the
   work is genuinely parallel.

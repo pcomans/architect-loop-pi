@@ -31,7 +31,7 @@ codex exec -C <repo-root> --sandbox workspace-write \
 ## Worktree fan-out (2–4 lanes — the architect owns the parallelism)
 
 One isolated worktree + one fresh `codex exec` per lane, all launched in
-parallel in the background. Lanes have provably disjoint file-touch sets from
+parallel in the background. Lanes have file-touch sets checked for overlap from
 the spec; each writes raw results to its own `docs/lanes/<slice>-<lane>.md`,
 so nothing collides.
 
@@ -73,7 +73,8 @@ conflicting lane and re-spec; don't hand-resolve builder conflicts.
   `.architect/last-run.md` and the repo state afterwards.
 - Pin the model explicitly — automations have been reported silently falling
   back to older models.
-- Effort: `xhigh` default (best review-survival for unattended work);
+- Effort: `xhigh` default (based on the cited review-survival data for
+  unattended work);
   architect downgrades routine, tightly-specified slices to `"high"`.
 - Same-slice follow-up (e.g. answering PHASE 0 disagreements after the human
   rules): `codex exec resume --last "<rulings + proceed>"`. Never resume
@@ -86,8 +87,8 @@ conflicting lane and re-spec; don't hand-resolve builder conflicts.
 - **Builders never commit — the architect does.** workspace-write protects
   `.git` as read-only (verified on Windows, Codex 0.139 — no config toggle;
   `writable_roots` does not bypass it; worktree pointer files are resolved and
-  protected too). This is load-bearing for the loop: lanes can't touch shared
-  history, so nothing reaches a branch until the architect's tamper, boundary,
+  protected too). This is load-bearing for the loop: lanes do not have commit
+  access, so nothing reaches a branch until the architect's tamper, boundary,
   and gate checks pass.
 
 ## Stall detection and rescue (verified live: Windows, Codex 0.139)

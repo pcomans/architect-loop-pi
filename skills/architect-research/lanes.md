@@ -41,7 +41,7 @@ classes look rich vs empty for this topic (papers? repos? vendor blogs?
 forums?); (5) the topic's natural fault lines — the 3–6 sub-questions an
 expert would split it into. Budget ~10 searches; breadth over depth; snippet
 over page. Output is a MAP for the orchestrator to design lanes from —
-structure beats completeness.
+structure matters more than completeness.
 
 ## Lane 1 — Academic (latest papers)
 
@@ -61,7 +61,7 @@ Pipeline: **survey first → frontier sweep → snowball → score.**
   Community signal: `https://huggingface.co/api/daily_papers?limit=20` and
   `https://huggingface.co/papers/trending`. **Papers With Code is dead**
   (shut down July 2025; HF Papers is the successor) — never cite it.
-- Snowball from the 2-3 best seeds — the most reliable "latest papers" method:
+- Snowball from the 2-3 most relevant seeds — a reliable "latest papers" method:
   forward citations
   `https://api.semanticscholar.org/graph/v1/paper/arXiv:<id>/citations?fields=title,year,isInfluential&limit=100`
   and semantic neighbors
@@ -114,7 +114,7 @@ are actually adopting — and which hyped repos are already abandoned.
 
 ## Lane 4 — Production-grade design patterns
 
-Objective: how the 2-3 best production libraries adjacent to <topic> design
+Objective: how 2-3 production libraries adjacent to <topic> design
 the thing we're about to build — API ergonomics, error handling, extension
 points, testing patterns — and where they differ.
 

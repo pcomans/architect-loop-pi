@@ -1,11 +1,10 @@
 # architect-loop
 
-**Claude Fable is the architect — it designs every slice, freezes the
-acceptance gates, and judges the results. GPT-5.5 Codex is the builder and
-researcher — it does all the engineering and all the web research, in
-parallel, unattended, for hours.** Two Claude Code skills that run this
-cross-vendor loop on the flat-rate subscriptions you already have — no API
-keys, no token bills.
+**Claude Fable handles planning and review; GPT-5.5 Codex handles
+implementation and research.** Two Claude Code skills wire that split into a
+repo-centered loop: specs and gates are written first, Codex works in fresh
+contexts, and Fable reviews the evidence before anything is integrated. It runs
+on the subscriptions you already have — no API keys required by default.
 
 ## Install (30 seconds)
 
@@ -37,19 +36,18 @@ dispatch builders. `/architect-research` is for when you're still deciding
 One short Fable session per work block — judgment only, it never writes code:
 
 - **Spec + gates first.** Fable specs a one-PR slice, splits it into 1–4
-  lanes with provably disjoint file sets, and commits the acceptance gates to
+  lanes whose file sets are checked for overlap, and commits the acceptance gates to
   `docs/gates/` *before* any builder starts. Gates are read-only; a builder
   edit to a gate file fails the slice automatically.
 - **Parallel isolated builders.** One fresh `codex exec` (xhigh) per lane,
   each in its own git worktree. Builders must argue with the spec before
   building (silent compliance = defect), build only their declared files,
-  and report raw results — they physically can't commit (the sandbox
-  protects `.git`).
+  and report raw results — they do not have commit access in the sandbox.
 - **Fable judges and integrates.** It runs the gate commands itself (builder
   claims are hearsay), reads the diff against the spec's intent (passing
   tests ≠ mergeable work), then commits and merges passing lanes. Judgment
-  happens in a fresh session — cross-context review measurably beats
-  same-session review.
+  happens in a fresh session because the cited evidence favors fresh-context
+  review.
 - **The repo is the only memory.** `docs/HANDOFF.md` (a short table of
   contents, pruned every session), `docs/gates/`, `docs/lanes/`, git
   history. Not in the repo = didn't happen.
@@ -83,12 +81,12 @@ taxonomy:
 
 ## Why this shape
 
-Each piece is there because evidence put it there (full citations in
+Each design choice is source-backed (full citations in
 [DESIGN.md](DESIGN.md)):
 
-- Weak planners hurt more than weak executors — so the strongest model does
-  the design, and builders get exhaustive specs.
-- Manager + worktree-isolated workers is the measured-best topology for
+- Weak planners hurt more than weak executors — so the architect model does
+  the design, and builders get explicit specs.
+- Manager + worktree-isolated workers is a well-supported topology for
   shared-artifact software work; naive shared-file coordination collapses
   throughput.
 - Frozen external gates beat trusting the agent — but agents game visible
@@ -96,9 +94,9 @@ Each piece is there because evidence put it there (full citations in
   also reads the diff.
 - Memory files rot — so the handoff stays a short map, and detail lives in
   linked gate/lane files.
-- Every production deep-research system uses planner-designed decomposition,
-  none uses fixed lanes — so research lanes are designed per topic, after a
-  scout pass.
+- The surveyed production deep-research systems use planner-designed
+  decomposition rather than fixed lanes — so research lanes are designed per
+  topic, after a scout pass.
 
 ## What's in the box
 
@@ -131,6 +129,14 @@ can paste it into an interactive `codex` session with `/goal` instead.
 
 **Why two skills?** Research-grade fan-out costs ~15× chat-level tokens — it
 should be a deliberate act, not a side-effect of the build loop.
+
+## Origin
+
+The original idea came from [this X post by @jumperz](https://x.com/jumperz/status/2065454404623384859)
+about using Fable with Opus subagents. I built architect-loop because I couldn't
+find an easy way to run that pattern, and because it seemed useful to add a few
+extra operational best practices on top of what Fable can already do when calling
+Opus subagents.
 
 ## License
 
