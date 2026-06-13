@@ -45,7 +45,7 @@ use LLM-designed, topic-specific decomposition rather than a fixed lane
 taxonomy. Lanes are designed per topic, not taken from a template.
 
 **Scout (brainstorm scale only):** dispatch ONE cheap researcher (~10
-searches, same codex command as step 3) to map the terrain: canonical
+searches, same `pi` command as step 3) to map the terrain: canonical
 terminology, the 5–10 load-bearing systems/papers/repos, the named people,
 which source classes look rich vs empty, and the topic's natural fault lines.
 The scout returns a map, not findings — discovering the topic's actual
@@ -68,24 +68,29 @@ dispatch. State the plan in a few lines; proceed unless the user redirects.
 
 ### 3. Fan out
 
-One fresh researcher per lane, all parallel, in the background:
+One fresh researcher per lane, all parallel, in the background. Inspect-only
+tools plus `bash` for `curl`; the report is the run's stdout:
 
 ```bash
-codex exec --sandbox read-only -c web_search="live" \
-  -m gpt-5.5 -c model_reasoning_effort="high" \
-  -o .architect/research/<NN>-<lane>.md \
-  - < .architect/research/<NN>-<lane>.prompt.md
+( cd <repo-root> && \
+  pi -p --mode text \
+    --model "${ARCHITECT_RESEARCH_MODEL:-deepseek/deepseek-v4-flash}" --thinking high \
+    --tools read,grep,find,ls,bash,web_search \
+    @.architect/research/<NN>-<lane>.prompt.md \
+    > .architect/research/<NN>-<lane>.md ) &
 ```
 
-Write each lane block to a `.prompt.md` file and pass it via stdin (`-`) —
-never as a shell argument; quote-mangling shells make codex hang on stdin.
+Write each lane block to a `.prompt.md` file and pass it as `@<file>` — never as
+a shell argument; `@file` avoids quote-mangling.
 
-(Web search is on by default in current Codex; `"live"` forces fresh results.
-Older CLIs: `--enable web_search` (0.13x) or `-c tools.web_search=true`
-(< 0.133); `--search` is TUI-only — exec rejects it. Launch ONE canary lane
-and confirm it starts cleanly before fanning out. If Codex is unavailable,
-run lanes as read-only Claude subagents with web search — the lane blocks
-work verbatim.)
+(General search is the `web_search` tool from the bundled extension
+(`extensions/web-search/` — Tavily if `TAVILY_API_KEY` set, else keyless
+DuckDuckGo); source-class endpoints are `curl`'d directly via `bash` — see the
+endpoint library in `lanes.md`. `--tools read,grep,find,ls,bash,web_search` adds
+search without `write`/`edit`, so researchers don't touch the repo. Launch ONE
+canary lane and confirm it starts cleanly and can reach search before fanning
+out. A fresh read-only Claude subagent with web search is an equally valid lane
+runner — the lane blocks work verbatim.)
 
 Every lane block carries the full contract — objective, output format, source
 guidance, boundaries — plus:

@@ -16,8 +16,28 @@ for skill in "$SRC_ROOT"/*/; do
     echo "Installed /$name to $DEST_ROOT/$name"
 done
 
-if command -v codex >/dev/null 2>&1; then
-    echo "Codex CLI found: $(codex --version) (need >= 0.133 for default Goal Mode)"
-else
-    echo "Codex CLI not found - install the builder with: npm i -g @openai/codex@latest"
+# Install the web_search tool (pi extension) globally so researchers can search.
+EXT_SRC="$(cd "$(dirname "$0")" && pwd)/extensions/web-search"
+EXT_DEST="$HOME/.pi/agent/extensions/web-search"
+if [ -d "$EXT_SRC" ]; then
+    mkdir -p "$(dirname "$EXT_DEST")"
+    rm -rf "${EXT_DEST:?}"
+    cp -r "$EXT_SRC" "$EXT_DEST"
+    rm -rf "$EXT_DEST/node_modules"
+    if command -v npm >/dev/null 2>&1; then
+        ( cd "$EXT_DEST" && npm install --omit=dev --silent ) && \
+            echo "Installed web_search extension to $EXT_DEST"
+    else
+        echo "web_search extension copied to $EXT_DEST - run 'npm install' there once npm is available"
+    fi
 fi
+
+# Builder: pi pointed at a cheap model (DeepSeek by default).
+if command -v pi >/dev/null 2>&1; then
+    echo "pi found: $(pi --version)"
+else
+    echo "pi not found - install the builder: curl -fsSL https://pi.dev/install.sh | sh"
+    echo "  (or: npm i -g --ignore-scripts @earendil-works/pi-coding-agent)"
+fi
+echo "Set your builder key:  export DEEPSEEK_API_KEY=sk-...   (see skills/architect/dispatch.md to switch models)"
+echo "Optional better search: export TAVILY_API_KEY=tvly-...  (else web_search uses keyless DuckDuckGo)"

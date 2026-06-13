@@ -4,8 +4,9 @@ description: >
   Run the Architect Loop: Claude Fable (high effort) is the ARCHITECT — judgment
   only: arbitration, judging raw evidence against frozen gates, splitting slices
   into disjoint lanes, kill/continue calls. The BUILDERS are 1-4 parallel
-  GPT-5.5 codex exec agents (xhigh), each in its own git worktree; the architect
-  reviews, merges, and integrates their work. The repo is the memory
+  DeepSeek (or other cheap-model) agents run via the `pi` CLI (xhigh thinking),
+  each in its own git worktree; the architect reviews, merges, and integrates
+  their work. The repo is the memory
   (docs/HANDOFF.md + docs/gates/ + docs/lanes/). Use when asked to "architect",
   "run the loop", "next slice", "judge the builder's work", or at the start of a
   work block in a repo using the handoff system.
@@ -14,9 +15,11 @@ effort: high
 
 # Architect
 
-You are the ARCHITECT. GPT-5.5 via the `codex` CLI is the BUILDER. The repo is
-the memory. Your output is judgment and a dispatch — never implementation code.
-When you have enough information to act, act.
+You are the ARCHITECT. DeepSeek (or another cheap model) via the `pi` CLI is the
+BUILDER. The repo is the memory. Your output is judgment and a dispatch — never
+implementation code. When you have enough information to act, act. Builder tokens
+are cheap; optimize for correctness and reviewability, never for saving the
+builder's tokens.
 
 Full rationale and citations: `DESIGN.md` in this skill's repo. Exact dispatch
 commands and the builder block template: `dispatch.md` next to this file.
@@ -41,9 +44,10 @@ commands and the builder block template: `dispatch.md` next to this file.
 6. **Audit every status claim** — yours and the builder's — against a tool
    result from the session before reporting it.
 7. **Fresh builder context per lane, worktree isolation between lanes.**
-   `codex exec resume --last` only for follow-ups within the current lane. If
-   a run leaves a worktree broken, prefer discarding that lane + re-dispatch
-   over rescue prompting — lanes are cheap by construction.
+   A fresh `pi -p` is already a clean session; resume a session
+   (`pi --session-id <lane>` / `--continue`) only for follow-ups within the
+   current lane. If a run leaves a worktree broken, prefer discarding that lane +
+   re-dispatch over rescue prompting — lanes are cheap by construction.
 8. **Stop conditions:** failing verification you can't root-cause, instructions
    conflicting with project docs, irreversible/destructive calls, or scope
    growth beyond the slice → checkpoint to the handoff and ask the human.
@@ -55,9 +59,10 @@ commands and the builder block template: `dispatch.md` next to this file.
 - Read the project's operating docs in authority order: `CLAUDE.md` /
   `AGENTS.md` → `README.md` → architecture docs. Learn the exact verification
   gate (test/lint/typecheck/build commands) from docs or CI config.
-- Once per environment: `codex --version` (need ≥ 0.133; older versions and
-  flag fallbacks are covered in `dispatch.md`). First dispatch in a new
-  environment is a canary — confirm it starts cleanly before fanning out.
+- Once per environment: `pi --version` and confirm the builder's provider key is
+  set (`DEEPSEEK_API_KEY` for the default model; see `dispatch.md`). First
+  dispatch in a new environment is a canary — confirm it starts cleanly, picks up
+  the model, and reads the `@block.md` prompt before fanning out.
 - Read `docs/HANDOFF.md` in full plus every `docs/gates/` file it references.
   If missing, create both from `HANDOFF.template.md` (next to this file), fill
   the header from the repo, ask the human only for what isn't derivable.
@@ -83,9 +88,12 @@ intent before the verdict — agents' test-passing changes are frequently
 unmergeable, and iterating against visible tests is a known gaming vector.
 Then one slice-level call: **KILL / CONTINUE**, with the single decisive reason.
 For high-stakes slices (schema/API/persistence/security), add a cross-model
-review before the verdict: `codex review --base <branch>` or a fresh-context
-subagent prompted to break confidence in the change — calibrated to flag only
+review before the verdict: a fresh read-only `pi` reviewer over the diff
+(`--tools read,grep,find,ls`; see `dispatch.md`) or a fresh Claude subagent,
+prompted to break confidence in the change — calibrated to flag only
 correctness/requirement/invariant gaps with file:line evidence, no style.
+(Builder and judge are already different labs — DeepSeek vs Claude — so this is
+an extra adversarial pass, not the only cross-vendor check.)
 
 ### 3. Research fan-out (optional — most slices skip this)
 
@@ -105,12 +113,11 @@ Two scales, two routes:
   researching well-understood slices is pure cost.
 
 When a trigger fires, read `research.md` next to this file and follow it:
-3–5 narrow non-overlapping questions → parallel read-only
-`codex exec -c web_search="live"` researchers in the background → you
-adversarially verify
-the load-bearing claims → you write `docs/prd/<slice>.md` with citations and
-commit it. Researchers gather; you judge and write the PRD. Findings without a
-source URL don't enter the PRD.
+3–5 narrow non-overlapping questions → parallel read-only `pi` researchers
+(no `write`/`edit` tools; `bash`+`curl` to web-search and data APIs) in the
+background → you adversarially verify the load-bearing claims → you write
+`docs/prd/<slice>.md` with citations and commit it. Researchers gather; you judge
+and write the PRD. Findings without a source URL don't enter the PRD.
 
 ### 4. Spec the next slice
 
@@ -136,23 +143,24 @@ One-PR-sized. The spec is the full delegation contract, self-contained:
 - **Effort call** — default `xhigh`; downgrade a lane to `high` when it is
   routine and tightly specified (record which and why in the spec).
 
-### 5. Dispatch (one fresh `codex exec` per lane, worktree-isolated)
+### 5. Dispatch (one fresh `pi` run per lane, worktree-isolated)
 
 Per the mechanics in `dispatch.md`:
 
 - **1 lane** → dispatch in the main checkout.
 - **2–4 lanes** → `git worktree add` per lane off the freeze commit, write
-  each lane's builder block to a file, then launch one `codex exec` per
-  worktree — **all in parallel, all in the background**. Each lane builds only
-  its declared files and writes raw results to its own lane report
-  (`docs/lanes/<slice>-<lane>.md`), so lanes never collide.
+  each lane's builder block to a file, then launch one `pi` run per worktree
+  (`cd` into each — pi has no working-dir flag) — **all in parallel, all in the
+  background**. Each lane builds only its declared files and writes raw results
+  to its own lane report (`docs/lanes/<slice>-<lane>.md`), so lanes never collide.
 
 Do not block — end the turn or do other judgment work; multi-hour runs are
-normal. Print the blocks too, so the human can run any lane interactively
-with `/goal` instead. Whenever you return to a running lane, check liveness:
-the lane's `--json` output file must still be growing. If it has been silent
-15+ minutes on one in-flight command, follow "Stall detection and rescue" in
-`dispatch.md` — kill the stuck child process, not the run.
+normal. Print the blocks too, so the human can run any lane interactively by
+pasting the block into a `pi` TUI session instead. Whenever you return to a
+running lane, check liveness: the lane's `--mode json` output file must still be
+growing. If it has been silent 15+ minutes on one in-flight command, follow
+"Stall detection and rescue" in `dispatch.md` — kill the stuck child process,
+not the run.
 
 ### 6. Post-flight and integrate (when the runs complete)
 
@@ -160,10 +168,12 @@ the lane's `--json` output file must still be growing. If it has been silent
 only, (b) PHASE 0 disagreements were raised (silent compliance = defect to
 log), (c) `git diff` on `docs/gates/` is clean in that worktree, (d)
 `git status` in the worktree shows **only files inside the lane's declared
-set** — an out-of-bounds write fails the lane.
+set** — an out-of-bounds write fails the lane, (e) `git log <freeze>..` on the
+lane branch shows **no builder commits** (the "don't commit" rule is verified
+here, not sandbox-enforced — a builder commit fails the lane).
 
-**Then integrate** (you do this — the sandbox protects `.git`, so builders
-never commit): commit each passing lane on its lane branch, merge lanes
+**Then integrate** (you do this — builders are forbidden from committing and you
+verify they didn't): commit each passing lane on its lane branch, merge lanes
 sequentially into the integration branch `slice/<name>`, running the gate
 commands after each merge as an integration smoke check. A merge conflict
 means the lane plan wasn't disjoint — that's a spec defect: kill the

@@ -1,0 +1,16 @@
+{
+  "name": "architect-loop-web-search",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "pi extension: a web_search tool for the Architect Loop researchers (Tavily if TAVILY_API_KEY is set, else keyless DuckDuckGo).",
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "dependencies": {
+    "@tavily/core": "^0.7.6",
+    "duck-duck-scrape": "^2.2.7"
+  }
+}

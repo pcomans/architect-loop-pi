@@ -1,9 +1,9 @@
 # Research fan-out reference
 
 Read this only when a research trigger fires (see SKILL.md step 3). The fan-out
-uses Codex as parallel web-research subagents — read-only, live search, on the
-flat-rate subscription — and the architect keeps all judgment: it verifies the
-load-bearing claims and writes the PRD itself.
+uses `pi` as parallel web-research subagents — no `write`/`edit`, with a
+`web_search` tool and `bash` for curling data APIs — and the architect keeps all
+judgment: it verifies the load-bearing claims and writes the PRD itself.
 
 ## Fan out
 
@@ -12,35 +12,39 @@ Cover different angles, not the same angle five times — typical split:
 official docs/reference, changelog/breaking changes, community failure reports,
 alternatives/comparisons, security/operational constraints.
 
-One fresh `codex exec` per question, all launched in parallel, in the
-background:
+One fresh `pi` run per question, all launched in parallel, in the background.
+Researchers get an inspect-only tool set plus `bash` (for `curl`), never
+`write`/`edit`, and their report is the stdout the architect captures:
 
 ```bash
-codex exec -C <repo-root> --sandbox read-only -c web_search="live" \
-  -m gpt-5.5 -c model_reasoning_effort="high" \
-  -o .architect/research/<NN>-<topic>.md \
-  - < .architect/research/<NN>-<topic>.prompt.md
+( cd <repo-root> && \
+  pi -p --mode text \
+    --model "${ARCHITECT_RESEARCH_MODEL:-deepseek/deepseek-v4-flash}" --thinking high \
+    --tools read,grep,find,ls,bash,web_search \
+    @.architect/research/<NN>-<topic>.prompt.md \
+    > .architect/research/<NN>-<topic>.md ) &
 ```
 
-Write each research block to a `.prompt.md` file and pass it via stdin (`-`),
-never as a shell argument — quote-mangling shells make codex hang waiting on
-stdin otherwise.
+Write each research block to a `.prompt.md` file and pass it as `@<file>` — never
+as a shell argument; `@file` avoids the quote-mangling that breaks big prompts.
 
-- `--sandbox read-only`: researchers never write to the repo.
-- `-c web_search="live"`: web search is on by default in current Codex
-  (cached mode); `"live"` forces fresh results. Version ladder if the canary
-  complains: `--enable web_search` (0.13x, now deprecation-warned) →
-  `-c tools.web_search=true` (< 0.133). `--search` is TUI-only — exec rejects
-  it. Launch ONE canary researcher and confirm it starts cleanly before
-  fanning out — these flags have churned three times in 2026 alone.
+- `--tools read,grep,find,ls,bash,web_search`: no `write`/`edit`, so researchers
+  don't modify the repo; the report comes back on stdout. `bash` is for `curl` to
+  the keyless data APIs, `web_search` is the general-search tool.
+- **Web search**: the `web_search` tool comes from the bundled extension
+  (`extensions/web-search/`, installed by `install.sh`) — Tavily if
+  `TAVILY_API_KEY` is set, else keyless DuckDuckGo. For source-class endpoints
+  (arXiv, Semantic Scholar, OpenAlex, HN Algolia) researchers `curl` directly;
+  those need no search engine. The endpoint library is in
+  `../architect-research/lanes.md`.
 - Effort `high`, not `xhigh` — research is coverage work; xhigh buys nothing
-  here. Synthesis happens on the architect's side.
+  here (capability, not cost). Synthesis is the architect's.
 - Scope each researcher to ≤5 subjects and put hard context rules in the
   block (snippet over page; quote ≤2 sentences; stop the moment you can
-  answer) — a researcher that fills its context window dies without writing
-  its output file. Bisect and re-dispatch dead lanes; don't re-run as-is.
-- Optionally pin `[tools.web_search] allowed_domains` in config for
-  prompt-injection-sensitive repos.
+  answer) — a researcher that fills its context window dies without emitting its
+  report. Bisect and re-dispatch dead lanes; don't re-run as-is.
+- Launch ONE canary researcher and confirm it starts cleanly and can reach the
+  search API before fanning out.
 
 ## Research block template
 

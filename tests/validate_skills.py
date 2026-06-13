@@ -2,8 +2,8 @@
 """Sanity checks for the architect-loop skill repo. Stdlib only.
 
 Catches the failure modes we've actually hit:
-- SKILL.md frontmatter description > 1024 chars -> Codex refuses to load the
-  skill (observed live: "invalid description: exceeds maximum length").
+- SKILL.md frontmatter description > 1024 chars -> the skill loader refuses to
+  load the skill (observed live: "invalid description: exceeds maximum length").
 - A skill file referencing a sibling file that doesn't exist.
 - README/DESIGN relative links pointing at deleted/moved files.
 - Unbalanced ``` fences (breaks the builder-block templates when pasted).
@@ -49,7 +49,7 @@ def check_frontmatter(skill_dir: Path) -> None:
         if len(flat) > MAX_DESC:
             errors.append(
                 f"{skill_dir.name}: description {len(flat)} chars > {MAX_DESC} "
-                "(Codex refuses to load the skill)"
+                "(the skill loader refuses to load the skill)"
             )
 
 

@@ -24,12 +24,18 @@ prior knowledge without flagging it. End with the 2-3 findings most likely to
 change a design decision.
 ```
 
+Researchers search with the **`web_search` tool** (from the bundled
+`extensions/web-search/` extension — Tavily if `TAVILY_API_KEY` is set, else
+keyless DuckDuckGo) and reach the keyless domain APIs in each lane below with
+`bash`+`curl`. No `write`/`edit` (they don't touch the repo); the report is the
+run's stdout.
+
 **Lane scoping rule (learned 2026-06-12):** cap each researcher at ~5 subjects
 (repos, vendors, people). Doc-heavy lanes burn the context window on fetched
 pages — two of nine researchers in one session died of context exhaustion
-before writing any findings. A researcher that dies returns NOTHING (`-o`
-only materializes on a clean finish). If a lane dies this way, bisect it into
-narrower lanes and re-dispatch; don't re-run it as-is.
+before writing any findings. A researcher that dies mid-run leaves nothing
+usable (its report is the run's final output). If a lane dies this way, bisect it
+into narrower lanes and re-dispatch; don't re-run it as-is.
 
 ## Lane 0 — Scout (brainstorm scale; dispatches before lane design)
 
@@ -153,6 +159,20 @@ docs/changelogs, pricing/operational constraints.
 - Source hierarchy applies hardest here: SEO listicles and AI-generated
   aggregators are pointers, never citations — chase them to the primary
   source or drop the claim.
+
+### General web search
+
+Lanes 1–4 use the keyless domain APIs above (curl) and need no search engine. For
+*general* search, call the **`web_search` tool** (`web_search(query,
+max_results?)`) — it returns ranked `title / url / snippet`. The backend is the
+bundled `extensions/web-search/` extension: Tavily (agent-optimized) when
+`TAVILY_API_KEY` is set, else keyless DuckDuckGo; swap the backend by editing that
+one file. If the tool is unavailable, `curl` a search API directly as a fallback
+(e.g. keyless `https://api.duckduckgo.com/?format=json&q=<q>`, shallow; or
+Zhipu/GLM `https://open.bigmodel.cn/api/paas/v4/web_search` with `ZAI_API_KEY`).
+
+After a hit, fetch the chosen source directly (`curl -sL <url>`) to quote it —
+the search snippet locates the source; the citation must come from the page.
 
 ## Lane 6 — Expert opinion (second wave — dispatch after lanes 1-5 return)
 

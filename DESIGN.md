@@ -1,13 +1,27 @@
 # DESIGN — The Architect Loop v2
 
 **A source-backed design for a Claude Code harness skill in which Claude Fable 5
-(high effort) acts as architect/orchestrator and GPT-5.5 via Codex CLI (xhigh
-reasoning) acts as builder, with the repo as the only memory.**
+(high effort) acts as architect/orchestrator and a cheap model — DeepSeek V4 by
+default — run via the `pi` CLI (xhigh thinking) acts as builder, with the repo as
+the only memory.**
 
-Researched June 2026 from Anthropic engineering posts, the official Fable 5 and
-Codex CLI documentation, and widely used community harness skills. Prescriptive
-claims below cite their sources. This document is the "why"; the skill files in
-`skills/architect/` are the "how".
+Researched June 2026 from Anthropic engineering posts, the official Fable 5 docs,
+the `pi` coding-agent docs (pi.dev), and widely used community harness skills.
+Prescriptive claims below cite their sources. This document is the "why"; the
+skill files in `skills/architect/` are the "how".
+
+> **Builder provider note.** This design was originally built around GPT-5.5 via
+> Codex CLI on a flat-rate ChatGPT subscription. It now drives the builder with
+> `pi` pointed at a cheap, metered, OpenAI-compatible model (DeepSeek V4 by
+> default; trivially swappable to GLM/Kimi/MiniMax — see `dispatch.md`). Two
+> consequences run through this document: (1) **pi has no sandbox**, so the
+> "builders can't commit" guarantee is now worktree-isolation + a verified prompt
+> rule + a container boundary, not a kernel-enforced one; (2) **the cost argument
+> inverts** — builder tokens are now so cheap they are not a design constraint,
+> and your **source code is sent to a third-party (overseas) model API**, a
+> confidentiality/IP trade the flat-rate first-party CLI didn't make. The
+> judgment-separation and cross-vendor-review rationale below is unchanged and is
+> the real reason for the split.
 
 ---
 
@@ -38,19 +52,22 @@ Kit:
 > agent that didn't write the code.**
 
 This loop adds one more separation on top: **cross-vendor judgment**. The builder
-and the judge are different models from different labs, which reduces
-same-model review bias ([OpenAI's own pitch for the Codex↔Claude
-bridge](https://www.mindstudio.ai/blog/openai-codex-plugin-claude-code-cross-provider-review)).
-The split also lines up with available benchmark claims: GPT-5.5 leads
-Terminal-Bench 2.0 (82.7%) for hands-on terminal work, while Anthropic positions
+(DeepSeek, a Chinese lab) and the judge (Anthropic's Fable 5) are different models
+from different labs, which reduces same-model review bias
+([cross-context review wins](https://arxiv.org/abs/2603.12123)) — and the
+DeepSeek↔Claude pairing is about as cross-vendor as it gets. Anthropic positions
 Fable 5 for long-horizon judgment and persistent file-based memory
-([Fable 5 announcement](https://www.anthropic.com/news/claude-fable-5-mythos-5)).
+([Fable 5 announcement](https://www.anthropic.com/news/claude-fable-5-mythos-5)),
+while open Chinese models now post competitive hands-on coding scores at a
+fraction of frontier prices.
 
-The economics are another reason for the split: judgment minutes on the expensive
-model, typing hours on the flat-rate one. Community measurements of
-orchestrator/worker splits report 58–74% lower cost versus running the top model
-end-to-end
-([Fable 5 Orchestrator Playbook](https://www.developersdigest.tech/blog/fable-5-orchestrator-model-playbook)).
+Cost is *not* the reason for the split here. With a cheap metered builder, the
+implementer's tokens are nearly free — so the design never trades capability for
+builder-token savings (run the builder at high effort; size slices for
+convergence, not for cost). The split earns its keep through **separation of
+judgment from labor**: fresh execution context per slice, a verifier that didn't
+write the code, and repo-resident memory across runs. (The earlier flat-rate-Codex
+framing leaned on a 58–74% cost delta; that argument no longer load-bears.)
 
 ---
 
@@ -59,7 +76,7 @@ end-to-end
 | Role | Who | Effort | Owns |
 |---|---|---|---|
 | **Architect** | Claude Fable 5 in Claude Code (`effort: high` via skill frontmatter) | minutes per work block | arbitration, judging raw evidence against frozen gates, next-slice specs, kill/continue calls |
-| **Builder** | GPT-5.5 via `codex exec` (`model_reasoning_effort: xhigh` default; architect may dial per slice) | hours per slice | implementation, lane agents, raw-results reporting |
+| **Builder** | DeepSeek V4 (or another cheap model) via `pi -p` (`--thinking xhigh` default; architect may dial per slice) | hours per slice | implementation, lane agents, raw-results reporting |
 | **Memory** | the repo: `docs/HANDOFF.md`, `docs/gates/`, git history | permanent | everything; not in the repo = didn't happen |
 | **Human** | you | final | scope, irreversible calls, taste |
 
@@ -70,15 +87,14 @@ Judgment over a small handoff file is squarely in `high` territory; the skill
 pins it with the `effort:` frontmatter key so it doesn't depend on session
 settings.
 
-Why `xhigh` for the builder: OpenAI's GPT-5.5 evals ran at xhigh, and independent
-effort-curve data shows xhigh winning on the metrics that matter for unattended
-work — semantic equivalence to the human PR (88% vs 69% at high) and
-review-pass rate (69% vs 38%) — at ~2.2× the cost of high
-([stet.sh effort curve](https://www.stet.sh/blog/gpt-55-codex-graphql-reasoning-curve)).
-Since the builder runs unattended for hours, review-survival is the metric to
-buy. The architect downgrades to `high` for routine, well-specified slices where
-the data shows high is equal on test-pass — this is a per-slice judgment call
-the spec records explicitly.
+Why `xhigh` for the builder: higher reasoning effort buys the metrics that matter
+for unattended work — semantic equivalence to the human PR and review-pass rate
+rise with effort, and the builder runs unattended for hours, so review-survival is
+the thing to buy. pi exposes thinking level as a first-class flag
+(`--thinking xhigh|high|...`), so the architect's effort vocabulary maps directly.
+Default to `xhigh`; drop a lane to `high` only when the work is so routine that the
+extra reasoning demonstrably changes nothing (a per-slice judgment the spec
+records explicitly) — not to cut cost (§1).
 
 ---
 
@@ -113,13 +129,15 @@ Two-stage review, fresh contexts, is the most-replicated community pattern
 [superpowers](https://github.com/obra/superpowers)). Anthropic's Fable 5 guide
 states it directly: "Separate, fresh-context verifier subagents tend to
 outperform self-critique." The loop's review stack:
-1. Builder's own reviewer lane (inside Codex, never writes feature code) — cheap first pass.
+1. Builder's own reviewer pass (a `pi` run with read-only tools, never writes feature code) — cheap first pass.
 2. Architect runs the gates **itself** and reads the output — "subagent test
    claims are hearsay" (your `/orchestrator` rule, matching Anthropic's
    "demand evidence, not assertions").
-3. Cross-model adversarial pass for high-stakes slices: `codex review --base
-   <branch>` (GPT reviewing its own lane output against the spec is still a
-   different context; or a fresh Claude subagent red-teams the diff). Calibrate
+3. Cross-model adversarial pass for high-stakes slices: a fresh read-only `pi`
+   reviewer over the diff (`--tools read,grep,find,ls`), or a fresh Claude
+   subagent red-teaming it. Builder and judge are already different labs
+   (DeepSeek vs Claude), so this is an extra pass, not the only cross-vendor
+   check. Calibrate
    the reviewer: *"flag only correctness/requirement/invariant gaps with
    file:line evidence — no style preferences"* — an uncalibrated reviewer
    always finds something and that spirals into gold-plating.
@@ -135,9 +153,9 @@ the gate specifies), then a slice-level **kill / continue** call.
 ### R5. Disagreement is mandatory, with citations
 The builder's PHASE 0 must surface every disagreement with the spec, citing real
 files; silent compliance is a defect the architect flags. This is the loop's
-defense against spec errors compounding — and it matches GPT-5.5's profile:
-prescriptive specs are followed literally, so the only place errors get caught
-is before execution. Every open disagreement gets an explicit
+defense against spec errors compounding — and it matches how a cheap builder
+behaves: prescriptive specs are followed literally, so the only place errors get
+caught is before execution. Every open disagreement gets an explicit
 **ACCEPT / REJECT / MODIFY + one line why**. No deferrals.
 
 ### R6. Delegation carries the full contract: objective, output format, tool guidance, boundaries
@@ -158,39 +176,38 @@ missing the point — the point is the always-fresh context"
 ([ghuntley.com/ralph](https://ghuntley.com/ralph/),
 [HumanLayer's history](https://www.humanlayer.dev/blog/brief-history-of-ralph)).
 This skill respects that: the architect's context holds judgment only; every
-slice is a **fresh `codex exec` process**. `codex exec resume --last` is used
-only for follow-ups within the same slice (answering the builder's PHASE 0
-questions), never to stretch one builder context across slices. "Code is cheap":
-when a long run leaves the repo broken, `git reset` and re-dispatch beats rescue
-prompting.
+slice is a **fresh `pi -p` process** (a new session by default). Resuming a
+session (`pi --session-id <lane>` / `--continue`) is used only for follow-ups
+within the same slice (answering the builder's PHASE 0 questions), never to
+stretch one builder context across slices. "Code is cheap": when a long run
+leaves the repo broken, `git reset` and re-dispatch beats rescue prompting.
 
-### R8. Parallelism is architect-orchestrated: one worktree + one fresh `codex exec` per lane, capped at 4
+### R8. Parallelism is architect-orchestrated: one worktree + one fresh `pi` run per lane, capped at 4
 Merge conflicts between parallel agents are the top reported multi-agent failure;
 the converged mitigation is mapping file-touch sets before parallelizing, one
 git worktree per agent, and a practical ceiling of 2–4 lanes before coordination
 overhead dominates ([Intility engineering](https://engineering.intility.com/article/agent-teams-or-how-i-learned-to-stop-worrying-about-merge-conflicts-and-love-git-worktrees),
 [MindStudio worktrees](https://www.mindstudio.ai/blog/git-worktrees-parallel-ai-coding-agents)).
-**The architect — not Codex — owns the fan-out.** The spec splits the slice
-into 1–4 lanes whose file sets are checked for overlap; each lane is an isolated
-worktree running its own `codex exec` process, writing its own lane report
-(`docs/lanes/`); the architect runs per-lane boundary checks (`git status`
-must show only declared files), commits each passing lane, and merges
-sequentially with gate smoke-runs after every merge. This replaced an earlier
-design that delegated lane-spawning to Codex's internal multi-agent feature —
-which is opt-in (`[features] multi_agent`, off by default) and silently
-degrades to serial work when unset, with zero architect visibility either
-way. Architect-owned worktrees make a merge conflict a detectable spec defect
-instead of a silent hazard, and isolate per-lane failure (discard one lane,
-not the slice).
+**The architect owns the fan-out.** The spec splits the slice into 1–4 lanes
+whose file sets are checked for overlap; each lane is an isolated worktree
+running its own `pi` process (`cd`'d into the worktree — pi has no working-dir
+flag), writing its own lane report (`docs/lanes/`); the architect runs per-lane
+boundary checks (`git status` must show only declared files, `git log` must show
+no builder commits), commits each passing lane, and merges sequentially with gate
+smoke-runs after every merge. Keeping fan-out in the architect rather than any
+builder-internal subagent feature makes a merge conflict a detectable spec defect
+instead of a silent hazard, and isolates per-lane failure (discard one lane, not
+the slice). pi keeps each lane single-agent and the parallelism explicit, which
+is exactly what this rule wants.
 
 ### R9. Supervise asynchronously; never block on the builder
 Fable 5 is specifically tuned for this: "significantly more dependable at
 dispatching and sustaining parallel subagents… prefer async communication over
 blocking on each return" ([Prompting Fable 5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5)).
-The dispatch runs `codex exec` in the background; the architect ends its turn or
+The dispatch runs `pi -p` in the background; the architect ends its turn or
 does other judgment work, then runs the post-flight checks when the run
-completes. Multi-hour builder runs are normal (community reports: 6.5h runs at
-~20% of a weekly Codex quota).
+completes. Multi-hour builder runs are normal — with a cheap metered model their
+cost stays small, so run length is bounded by the work, not a quota.
 
 ### R10. Grounded progress claims — audit every status against tool output
 Fable 5 guidance: instruct the model to audit every status claim against a tool
@@ -224,51 +241,45 @@ generation and delete what the model now does unprompted.
 
 ---
 
-## 4. The builder interface (verified against Codex CLI ≥ 0.133, June 2026)
+## 4. The builder interface (`pi`)
 
-Facts the skill encodes — several correct widespread misinformation:
+The exact flags, providers, and model ids are read from the installed CLI
+(`pi --help`, `pi --list-models <provider>`, pi's bundled `docs/`); the precise
+dispatch commands live in `dispatch.md`. This section records only the
+*properties the design leans on* — not a flag list to keep in sync:
 
-- **Model slug is `gpt-5.5`**, not `gpt-5.5-codex`; the `-codex`-suffixed line
-  ended at gpt-5.3 and is deprecated under ChatGPT sign-in. Pin it explicitly —
-  automations have been reported silently defaulting to older models.
-- **`codex exec` is non-interactive by design** — `-a/--ask-for-approval` and
-  `--search` are TUI-only flags that exec rejects (verified live on 0.139).
-  The sandbox flag is the only permission control. Web search is on by
-  default in current Codex; `-c web_search="live"` forces fresh results
-  (older CLIs: `--enable web_search`, then `-c tools.web_search=true`).
-  `--full-auto` is deprecated. These flags churned three times in 2026 alone —
-  hence the skills' one-canary-before-fan-out rule per environment.
-- **Effort** is `-c model_reasoning_effort="xhigh"` (or `high`), per invocation.
-- **Structured telemetry**: `--json` (JSONL event stream) and
-  `-o <file>` / `--output-last-message` for the final message;
-  `--output-schema <schema.json>` can force the builder's final report to
-  conform to a JSON schema — used for the machine-checkable run report.
-- **Session continuity**: `codex exec resume --last "<follow-up>"` for
-  same-slice follow-ups.
-- **Goal Mode** (`/goal`) is interactive-TUI; GA and default since v0.133.0
-  (May 2026). Real subcommands: bare `/goal`, `/goal pause|resume|clear`. For
-  headless dispatch, `codex exec` already loops until done — Goal Mode is the
-  manual-mode equivalent when you babysit a run yourself.
-- **`AGENTS.md`** is the builder's standing context (concatenated root-down,
-  deeper files override). The loop's PHASE rules live in the dispatch block, not
-  AGENTS.md, so they version with the skill; repo-specific build/test commands
-  belong in AGENTS.md per OpenAI's guidance.
-- **`codex review --base <branch>`** gives an independent reviewer context for
-  the cross-model review gate.
+- **Non-interactive headless runs** (`pi -p`) that loop plan→act→test and exit,
+  with the slice spec handed in as a file (no shell quote-mangling).
+- **Reasoning effort is a per-run knob** that maps directly onto the architect's
+  `xhigh`/`high` vocabulary — so effort is a spec decision, not a config chore.
+- **Tool scoping is the only write control** (there is no sandbox): a builder gets
+  write/edit/bash; a reviewer is genuinely inspect-only (`read,grep,find,ls` over a
+  diff); a researcher drops write/edit but keeps `bash` (curl to data APIs) and a
+  `web_search` tool. That's enough scoping to express the roles.
+- **A structured event stream** for liveness monitoring, plus plain-text capture
+  for report-style runs.
+- **Fresh-by-default sessions** with opt-in resume — exactly the fresh-context-
+  per-slice property R7 wants, with same-slice follow-up still available.
+- **Repo-resident standing context** (`AGENTS.md`/`CLAUDE.md` loaded by default),
+  so repo build/test commands live in the repo and the loop's PHASE rules stay in
+  the versioned dispatch block.
+- **No built-in sandbox and no review subcommand.** pi's own security doc is
+  explicit: *"Real isolation needs to come from the operating system or a
+  virtualization/container boundary."* So isolation is worktree+branch per lane,
+  a verified "don't commit" prompt rule, and **running the loop inside a
+  container** (§6, README); the cross-model gate is a fresh read-only reviewer
+  (R3), not a CLI feature.
 
-Canonical dispatch:
+The model lives in one place — `ARCHITECT_BUILDER_MODEL` (default
+`deepseek/deepseek-v4-pro`) plus the matching provider key — so the whole loop
+swaps engine with one variable.
 
-```bash
-codex exec -C <repo> --sandbox workspace-write \
-  -m gpt-5.5 -c model_reasoning_effort="xhigh" \
-  --json -o .architect/last-run.md \
-  "<builder block: PHASE rules + slice spec + frozen gate references>"
-```
-
-Subscription note: ChatGPT-plan quotas are per-5-hour window plus a weekly cap;
-long runs draw on the weekly pool. For unattended overnight loops that must not
-die mid-run, `CODEX_API_KEY` per-token billing avoids window exhaustion — the
-architect notes this trade-off but defaults to the subscription.
+Billing note: **per-token on the provider's API key**, not a flat-rate
+subscription (cheapness is covered in §1). The real cost of this provider choice
+is confidentiality: **your source is sent to a third-party (overseas) model API**
+(§6, README security note). For code you cannot send out, point `models.json` at a
+self-hosted open-weights model
+(vLLM/Ollama) on the same OpenAI-compatible interface — pi treats it identically.
 
 ---
 
@@ -285,7 +296,7 @@ architect notes this trade-off but defaults to the subscription.
 │   3. Spec next slice: objective + output format + tool guidance +          │
 │      boundaries + out-of-scope; freeze gates to docs/gates/<slice>.md;     │
 │      commit the freeze                                                     │
-│   4. Dispatch: 1-4 parallel codex exec lanes, one git worktree each        │
+│   4. Dispatch: 1-4 parallel `pi` lanes, one git worktree each             │
 │      (background, fresh context, xhigh default). Per lane: PHASE 0         │
 │      disagree-or-fail → PHASE 1 contracts frozen → PHASE 2 build own       │
 │      files only → raw lane report (docs/lanes/), no commits                │
@@ -305,7 +316,8 @@ breath (fresh-context judgment, R3).
 ### Optional pre-spec research fan-out
 
 Between judging and speccing, the architect may run a research phase: 3–5
-parallel `codex exec --sandbox read-only -c web_search="live"` researchers, each
+parallel `pi` researchers (`--tools read,grep,find,ls,bash,web_search` — no
+`write`/`edit`; a `web_search` tool plus `curl` for the keyless data APIs), each
 answering one narrow non-overlapping question, with the architect adversarially
 verifying load-bearing claims and writing `docs/prd/<slice>.md` itself. Design
 decisions behind it:
@@ -315,15 +327,17 @@ decisions behind it:
   (slice depends on external APIs/libraries/versions new to the repo; a
   technology choice needs facts nobody has; the human asks) and defaults to
   skip — the builder's verify-against-reality requirement already covers
-  routine API checks (R11: scale effort to the task).
+  routine API checks. (Trigger-gating is about avoiding noise and stale lanes,
+  not cost.)
 - **Progressive disclosure.** The mechanics live in `research.md`, read only
   when a trigger fires — the default architect context never pays for them
   (R12, per [Skills docs](https://code.claude.com/docs/en/skills) guidance to
   push detail to referenced files).
-- **Codex researchers, Fable judgment.** Research is coverage work — it runs
-  at `high` effort on the flat-rate OpenAI sub, read-only sandboxed with live
-  search ([CLI features](https://developers.openai.com/codex/cli/features);
-  `[tools.web_search] allowed_domains` available as prompt-injection defence).
+- **pi researchers, Fable judgment.** Research is coverage work — it runs at
+  `high` thinking (xhigh buys nothing for gathering), with a reduced tool set (no
+  `write`/`edit`): a `web_search` tool (the bundled `extensions/web-search/`
+  extension — Tavily or keyless DuckDuckGo) plus `curl` for the keyless data
+  endpoints in `lanes.md`/`research.md`.
   Verification of load-bearing claims and PRD authorship stay with the
   architect — researchers are explicitly forbidden from making
   recommendations, the research-side equivalent of "raw results only" (R3).
@@ -363,7 +377,7 @@ construction +16.28% relative). The six source-class sections in `lanes.md`
 became a tactics library the orchestrator draws from when designing lanes:
 
 - **Scout → design → fan out.** For brainstorm-scale questions, one cheap
-  codex scout (~10 searches) maps terminology, load-bearing
+  pi scout (~10 searches) maps terminology, load-bearing
   systems, named people, and the topic's natural fault lines; the architect
   then designs 3–6 topic-specific lanes from that map. Source-derived
   perspective discovery was STORM's largest measured lever (unique references
@@ -430,6 +444,8 @@ became a tactics library the orchestrator draws from when designing lanes:
 | Merge conflicts between lanes | Disjoint-file-set lanes, ≤3–4, worktrees, one reviewer lane gating merges (R8) |
 | Placeholder implementations | Gate commands are end-to-end and executable; "search before implementing; no placeholder code" in the builder block (R4) |
 | Broken repo after a long run | One slice per iteration; commit per lane; `git reset` + re-dispatch over rescue prompting (R7) |
+| Builder commits / touches `.git` (no sandbox) | Worktree+branch per lane; "don't commit" prompt rule; post-flight `git log <freeze>..` shows no builder commits → lane FAIL; architect owns every merge (R8) |
+| Unattended builder with full host access (no sandbox) | Run the whole loop in a container/devcontainer with only the workspace mounted; reduced tool sets for non-builders; metered third-party API → exclude secrets/sensitive repos or self-host the model (§4, README) |
 | Fabricated status reports | Every status claim audited against a tool result, both sides (R10) |
 | Gate-passing but unmergeable work | Judge reads the diff against spec intent, not gate output alone — METR: 38% test-pass, 0 mergeable as-is; cross-model review for high-stakes (R3, R4) |
 | Builder gaming visible gates | Gates frozen + read-only; architect-run verification; no builder iterate-against-gate feedback loops (ImpossibleBench: visible-test loops raised cheating 33%→38%) (R2, R3) |
@@ -450,10 +466,10 @@ became a tactics library the orchestrator draws from when designing lanes:
   multi-block runs, the dispatch step composes with `claude -p` / scheduled
   jobs, but that's an extension, not the default (and note `claude -p` draws on
   separate Agent SDK credits from June 15, 2026).
-- **Not just Goal Mode.** Codex's Goal Mode already loops
-  plan→act→test→review against a stopping condition. This design adds extra
-  separation around Goal Mode: cross-model judgment, frozen external
-  gates, arbitration, and repo-resident memory across runs.
+- **Not just an autonomous builder.** `pi -p` already loops
+  plan→act→test against a stopping condition inside one run. This design adds the
+  separation around that loop: cross-vendor judgment, frozen external gates,
+  arbitration, and repo-resident memory across runs.
 
 ---
 
@@ -476,15 +492,13 @@ became a tactics library the orchestrator draws from when designing lanes:
 [Fable 5 announcement](https://www.anthropic.com/news/claude-fable-5-mythos-5) ·
 [Prompting Claude Fable 5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5)
 
-**OpenAI (official):**
-[codex exec / non-interactive](https://developers.openai.com/codex/noninteractive) ·
-[CLI reference](https://developers.openai.com/codex/cli/reference) ·
-[Config reference](https://developers.openai.com/codex/config-reference) ·
-[Goal Mode](https://developers.openai.com/codex/use-cases/follow-goals) ·
-[Subagents](https://developers.openai.com/codex/subagents) ·
-[AGENTS.md guide](https://developers.openai.com/codex/guides/agents-md) ·
-[Changelog](https://developers.openai.com/codex/changelog) ·
-[Codex prompting guide](https://developers.openai.com/cookbook/examples/gpt-5/codex_prompting_guide)
+**pi — builder CLI (authoritative source is the installed CLI, not this doc):**
+the live surface is `pi --help` (flags + the provider/env-var list),
+`pi --list-models <provider>` (exact model ids), and pi's bundled `docs/`
+(`providers.md`, `models.md`, `security.md`, `containerization.md`). Entry point:
+[pi.dev](https://pi.dev). This document and `dispatch.md` describe the *pattern*;
+they deliberately don't re-tabulate pi's flags or model list — read them from the
+CLI so they can't go stale.
 
 **Evidence reviews (2026-06, architect-verified primary sources):**
 [Geng & Neubig — async SE agents, worktree+manager topology](https://huggingface.co/papers/2603.21489) ·
@@ -509,8 +523,6 @@ became a tactics library the orchestrator draws from when designing lanes:
 [Simon Willison — Agentic Engineering Patterns](https://simonwillison.net/guides/agentic-engineering-patterns/how-coding-agents-work/) ·
 [Simon Willison on Fable 5](https://simonwillison.net/2026/Jun/9/claude-fable-5/) ·
 [Latent Space — Harness Engineering](https://www.latent.space/p/harness-eng) ·
-[Fable 5 Orchestrator Playbook](https://www.developersdigest.tech/blog/fable-5-orchestrator-model-playbook) ·
-[GPT-5.5 effort curve (stet.sh)](https://www.stet.sh/blog/gpt-55-codex-graphql-reasoning-curve) ·
 [GitHub Spec Kit](https://github.com/github/spec-kit) ·
 [Steve Yegge — Beads](https://steve-yegge.medium.com/introducing-beads-a-coding-agent-memory-system-637d7d92514a) ·
 [Reward hacking in self-improvement](https://openreview.net/forum?id=ikrQWGgxYg) ·

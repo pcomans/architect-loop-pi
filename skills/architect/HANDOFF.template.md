@@ -1,10 +1,10 @@
 # HANDOFF — [project name]
 
-> Repo memory for the Architect Loop. The builder (Codex) updates this after
-> every run; the architect (Claude) writes rulings and verdicts here.
-> Raw evidence only in builder sections — tables, numbers, commit SHAs, test
+> Repo memory for the Architect Loop. The architect (Claude) maintains this each
+> session — consolidating builder lane reports and writing rulings and verdicts.
+> Raw evidence only in the results sections — tables, numbers, commit SHAs, test
 > output. No interpretation, no "promising". Every claim must be backed by a
-> command result from the run that wrote it.
+> command result from the run that produced it.
 > Not in this file = didn't happen.
 
 ## TL;DR (keep current — next session must grok this in under a minute)
@@ -39,7 +39,7 @@ freeze — for everyone, including the builder.]
 |------|---------|-----------|------------|-------------------|
 |      |         |           |            | PASS/FAIL/INVALID |
 
-## Raw results (latest run — builder writes, architect never edits)
+## Raw results (latest run — verbatim from builder lane reports, not reinterpreted)
 
 [Tables, numbers, test output, commit SHAs. No adjectives.]
 
