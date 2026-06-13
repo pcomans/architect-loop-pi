@@ -1,5 +1,11 @@
 {
   "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
   "features": { "ghcr.io/devcontainers/features/python:1": {} },
-  "postCreateCommand": "npm i -g --ignore-scripts @earendil-works/pi-coding-agent && ./install.sh"
+  "postCreateCommand": "npm i -g --ignore-scripts @earendil-works/pi-coding-agent && ./install.sh",
+  "remoteEnv": {
+    "DEEPSEEK_API_KEY": "${localEnv:DEEPSEEK_API_KEY}",
+    "TAVILY_API_KEY": "${localEnv:TAVILY_API_KEY}",
+    "ARCHITECT_BUILDER_MODEL": "${localEnv:ARCHITECT_BUILDER_MODEL}",
+    "ARCHITECT_RESEARCH_MODEL": "${localEnv:ARCHITECT_RESEARCH_MODEL}"
+  }
 }
