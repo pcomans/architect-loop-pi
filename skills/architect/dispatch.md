@@ -125,12 +125,11 @@ conflicting lane and re-spec; don't hand-resolve builder conflicts.
 - Effort: `--thinking xhigh` default for unattended work; the architect
   downgrades routine, tightly-specified lanes to `--thinking high`.
 - Same-slice follow-up (e.g. answering PHASE 0 disagreements after the human
-  rules): give the run a stable handle with `--session-id <slice>-<NN>` on first
-  dispatch, then resume it with
-  `pi --session-id <slice>-<NN> -p @followup.md`. (`pi --continue` resumes the
-  most recent session in the cwd if you didn't name it.) Never resume across
-  slices — every slice gets a fresh context (a fresh `pi -p` with no
-  `--continue`/`--session-id` is already a clean session).
+  rules): from the lane's worktree, `pi --continue -p @followup.md` resumes that
+  lane's most recent session (each lane has its own cwd, so this is unambiguous).
+  To target a specific session, capture its id and use `pi --session <id> -p
+  @followup.md`. Never resume across slices — every slice gets a fresh context (a
+  fresh `pi -p` with no `--continue`/`--session` is already a clean session).
 - Cross-model note: the builder (DeepSeek) and the judge (Claude/Fable) are
   already different labs, so the architect running the gates itself is the
   cross-vendor check. For an extra adversarial pass on high-stakes slices, run a

@@ -177,7 +177,7 @@ missing the point — the point is the always-fresh context"
 [HumanLayer's history](https://www.humanlayer.dev/blog/brief-history-of-ralph)).
 This skill respects that: the architect's context holds judgment only; every
 slice is a **fresh `pi -p` process** (a new session by default). Resuming a
-session (`pi --session-id <lane>` / `--continue`) is used only for follow-ups
+session (`pi --continue`, or `pi --session <id>`) is used only for follow-ups
 within the same slice (answering the builder's PHASE 0 questions), never to
 stretch one builder context across slices. "Code is cheap": when a long run
 leaves the repo broken, `git reset` and re-dispatch beats rescue prompting.

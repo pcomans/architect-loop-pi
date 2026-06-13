@@ -17,15 +17,17 @@ anything is integrated.
 ## Install (30 seconds)
 
 ```bash
-git clone https://github.com/DanMcInerney/architect-loop
-cd architect-loop && ./install.sh        # Windows: .\install.ps1
+git clone https://github.com/pcomans-bot/architect-loop-pi
+cd architect-loop-pi && ./install.sh     # Windows: .\install.ps1
 npm i -g --ignore-scripts @earendil-works/pi-coding-agent   # the builder (pi)
 export DEEPSEEK_API_KEY=sk-...            # see dispatch.md to use GLM/Kimi/etc.
 ```
 
-`./install.sh --project` installs to the current repo only instead of globally.
-You need [Claude Code](https://claude.com/claude-code) on any paid plan, `pi`, and
-a `DEEPSEEK_API_KEY`. `install.sh` also installs the
+`./install.sh --project` installs the **skills** to the current repo
+(`./.claude/skills/`) instead of `~/.claude/skills/`; `pi` and the `pi-search-hub`
+package always install globally. You need
+[Claude Code](https://claude.com/claude-code) on any paid plan, `pi`, and a
+`DEEPSEEK_API_KEY`. `install.sh` also installs the
 [`pi-search-hub`](https://pi.dev/packages/pi-search-hub) package for the
 `web_search` tool; set `TAVILY_API_KEY` for better search, else it uses keyless
 DuckDuckGo.

@@ -45,7 +45,7 @@ commands and the builder block template: `dispatch.md` next to this file.
    result from the session before reporting it.
 7. **Fresh builder context per lane, worktree isolation between lanes.**
    A fresh `pi -p` is already a clean session; resume a session
-   (`pi --session-id <lane>` / `--continue`) only for follow-ups within the
+   (`pi --continue` in the lane's worktree, or `pi --session <id>`) only for follow-ups within the
    current lane. If a run leaves a worktree broken, prefer discarding that lane +
    re-dispatch over rescue prompting — lanes are cheap by construction.
 8. **Stop conditions:** failing verification you can't root-cause, instructions
