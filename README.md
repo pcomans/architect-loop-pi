@@ -1,6 +1,6 @@
 # architect-loop
 
-**Claude Fable handles planning and review; GPT-5.5 Codex handles
+**Claude handles planning and review; GPT-5.5 Codex handles
 implementation and research.** Two Claude Code skills wire that split into a
 repo-centered loop: specs and gates are written first, Codex works in fresh
 contexts, and Fable reviews the evidence before anything is integrated. It runs
