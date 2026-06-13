@@ -14,7 +14,25 @@ anything is integrated.
 > upstream [DanMcInerney/architect-loop](https://github.com/DanMcInerney/architect-loop)
 > runs the same loop on flat-rate Codex instead.
 
-## Install (30 seconds)
+## Install
+
+**Option A — DevPod (recommended)**
+
+```bash
+export DEEPSEEK_API_KEY=sk-...   # forwarded into the container automatically
+devpod up https://github.com/pcomans-bot/architect-loop-pi --ide none
+```
+
+The devcontainer handles Node 22, Python, `pi`, `install.sh`, `pip install ddgs`, and key forwarding automatically.
+
+> **Fedora / Bazzite / RHEL users:** SELinux labels new workspace directories as `user_home_t`, which blocks container access. Run this once after installing DevPod:
+> ```bash
+> sudo semanage fcontext -a -t container_file_t "/var/home/$USER/.devpod/agent/contexts/default/workspaces(/.*)?"
+> sudo restorecon -Rv ~/.devpod/agent/contexts/default/workspaces/
+> ```
+> Ubuntu, Debian, macOS, and WSL users are unaffected.
+
+**Option B — Manual**
 
 ```bash
 git clone https://github.com/pcomans-bot/architect-loop-pi
@@ -32,8 +50,7 @@ package always install globally. You need
 `DEEPSEEK_API_KEY`. `install.sh` also installs the
 [`pi-search-hub`](https://pi.dev/packages/pi-search-hub) package for the
 `web_search` tool. Its keyless DuckDuckGo backend needs the `ddgs` Python package
-(above); for better results set `SEARCH_TAVILY_API_KEY` (Tavily). The
-**devcontainer does all of this for you** — `npm`/`pip`/keys included.
+(above); for better results set `SEARCH_TAVILY_API_KEY` (Tavily).
 
 `--ignore-scripts` blocks install-time scripts (the common npm-poisoning vector).
 
