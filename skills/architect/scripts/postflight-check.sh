@@ -48,6 +48,18 @@ for ref in "$FREEZE" "$BRANCH"; do
     echo "FATAL: '$ref' is not a valid commit or branch in $WT" >&2; exit 2; }
 done
 
+# The worktree must actually be ON $BRANCH, or check 2 (no builder commits) would
+# inspect a ref unrelated to the tree being verified: a mismatched arg makes
+# `git log $FREEZE..$BRANCH` empty while the real HEAD carries the builder's
+# commits — certifying the wrong branch. Require BRANCH == the worktree HEAD.
+wt_head="$(git -C "$WT" rev-parse HEAD)"
+branch_sha="$(git -C "$WT" rev-parse "$BRANCH^{commit}")"
+if [ "$wt_head" != "$branch_sha" ]; then
+  echo "FATAL: $WT is not on '$BRANCH' (worktree HEAD=$wt_head, $BRANCH=$branch_sha)" >&2
+  echo "       Point <lane-branch> at the branch the worktree has checked out." >&2
+  exit 2
+fi
+
 fails=0
 pass() { printf 'PASS  %s\n' "$1"; }
 fail() { printf 'FAIL  %s\n' "$1"; fails=$((fails+1)); }

@@ -55,7 +55,7 @@ WT="${1:?worktree abs path required}"
 REPO="${2:?canonical repo path required}"
 BLOCK="${3:?block relpath (inside worktree) required}"
 SID="${4:?session-id required}"
-LOG="${5:?log abs path (outside repo) required}"
+LOG="${5:?log abs path (readable from main checkout; not in the worktree tree) required}"
 THINK="${6:-xhigh}"
 ERRLOG="${LOG%.jsonl}.err"
 MODEL="${ARCHITECT_BUILDER_MODEL:-deepseek/deepseek-v4-pro}"
@@ -120,16 +120,25 @@ while :; do
   sleep 3
   pipid="$(find_inner_pi "$pid" || true)"; [ -z "$pipid" ] && pipid="$pid"
 
+  # Liveness = PROGRESS in the current poll window: new output bytes, or CPU
+  # actually advancing. /proc jiffies are CUMULATIVE, so "jiffies > 0" is not
+  # liveness — a process that burns a few ticks at startup and then hangs with no
+  # output would otherwise look alive forever and run out the outer timeout. Track
+  # a per-window CPU delta against a baseline, resetting it whenever the watched
+  # pid changes (the inner pi may only resolve a few probes in).
   streaming=0; killed=0; waited=3; last_rc=""
+  prev_pipid="$pipid"; prev_j=$(jiffies "$pipid")
   while kill -0 "$pid" 2>/dev/null; do
     sleep "$POLL_SECS"; waited=$((waited+POLL_SECS))
     # re-resolve the pi pid in case it wasn't up yet on the first probe
     [ "$pipid" = "$pid" ] && pipid="$(find_inner_pi "$pid" || echo "$pid")"
     bytes=$(wc -c < "$LOG" 2>/dev/null || echo 0)
     j=$(jiffies "$pipid")
-    if [ "$bytes" -gt 0 ] || [ "$j" -gt 0 ]; then streaming=1; break; fi
+    if [ "$pipid" != "$prev_pipid" ]; then prev_pipid="$pipid"; prev_j="$j"; dj=0
+    else dj=$((j - prev_j)); prev_j="$j"; fi
+    if [ "$bytes" -gt 0 ] || [ "$dj" -gt 0 ]; then streaming=1; break; fi
     if [ "$waited" -ge "$STALL_SECS" ]; then
-      echo "[confined-pi] STALL at ${waited}s (0 bytes, 0 jiffies) — killing lane + retrying" >&2
+      echo "[confined-pi] STALL at ${waited}s (0 new bytes, 0 CPU progress) — killing lane + retrying" >&2
       kill_tree "$pid"
       killed=1; break
     fi

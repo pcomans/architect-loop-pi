@@ -108,7 +108,8 @@ watch (below). Recommended for fan-out:
 
 ```bash
 # per lane, off the freeze commit (worktree as above); block lives INSIDE the worktree,
-# log OUTSIDE the repo so it's readable from the main checkout:
+# log under the main checkout's scratch dir (written by the outer shell, so it stays
+# readable from the main checkout) but OUT of the bind-mounted worktree's tracked tree:
 ${CLAUDE_SKILL_DIR}/scripts/confined-pi.sh \
   <repo-root>/.architect/wt/<slice>-<NN> \
   <repo-root> \

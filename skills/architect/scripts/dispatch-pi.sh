@@ -70,14 +70,23 @@ while :; do
   [ -z "$pipid" ] && pipid=$(pgrep -x pi 2>/dev/null | tail -1)
   [ -z "$pipid" ] && pipid=$pid
 
+  # Liveness = PROGRESS in the current poll window: new output bytes, or CPU
+  # actually advancing. /proc jiffies are CUMULATIVE, so "jiffies > 0" is not
+  # liveness — a process that burns a few ticks at startup and then hangs with no
+  # output would otherwise look alive forever and run out the outer timeout. Track
+  # a per-window CPU delta against a baseline taken now (startup ticks already
+  # banked), and reset the baseline if the watched pid changes.
   streaming=0; killed=0; waited=3; last_rc=""
+  prev_pipid="$pipid"; prev_j=$(jiffies "$pipid")
   while kill -0 "$pid" 2>/dev/null; do
     sleep "$POLL_SECS"; waited=$((waited+POLL_SECS))
     bytes=$(wc -c < "$OUT" 2>/dev/null || echo 0)
     j=$(jiffies "$pipid")
-    if [ "$bytes" -gt 0 ] || [ "$j" -gt 0 ]; then streaming=1; break; fi
+    if [ "$pipid" != "$prev_pipid" ]; then prev_pipid="$pipid"; prev_j="$j"; dj=0
+    else dj=$((j - prev_j)); prev_j="$j"; fi
+    if [ "$bytes" -gt 0 ] || [ "$dj" -gt 0 ]; then streaming=1; break; fi
     if [ "$waited" -ge "$STALL_SECS" ]; then
-      echo "[dispatch-pi] STALL at ${waited}s (0 bytes, 0 jiffies) — killing + retrying" >&2
+      echo "[dispatch-pi] STALL at ${waited}s (0 new bytes, 0 CPU progress) — killing + retrying" >&2
       kill_tree "$pid"
       killed=1; break
     fi
