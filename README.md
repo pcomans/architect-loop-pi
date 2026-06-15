@@ -20,7 +20,7 @@ anything is integrated.
 
 ```bash
 export DEEPSEEK_API_KEY=sk-...   # forwarded into the container automatically
-devpod up https://github.com/pcomans-bot/architect-loop-pi --ide none
+devpod up https://github.com/pcomans/architect-loop-pi --ide none
 ```
 
 The devcontainer handles Node 22, Python, `pi`, `install.sh`, `pip install ddgs`, and key forwarding automatically.
@@ -35,7 +35,7 @@ The devcontainer handles Node 22, Python, `pi`, `install.sh`, `pip install ddgs`
 **Option B — Manual**
 
 ```bash
-git clone https://github.com/pcomans-bot/architect-loop-pi
+git clone https://github.com/pcomans/architect-loop-pi
 cd architect-loop-pi
 npm i -g --ignore-scripts @earendil-works/pi-coding-agent@latest  # the builder (pi)
 ./install.sh                                                      # skills + pi-search-hub  (Windows: .\install.ps1)
@@ -62,6 +62,14 @@ release has time to be caught and yanked. The devcontainer sets this
 automatically; on a host machine it's opt-in (it changes your global npm config).
 Raise the number for more seasoning — but note ≥5 days currently pulls an older pi
 0.78.x, since 0.79.x is still recent.
+
+**Confined parallel lanes** use `confined-pi.sh`, which isolates each builder with a
+Linux user+mount namespace so it can't write outside its worktree. It needs the
+container to permit unprivileged user namespaces (`/proc/sys/user/max_user_namespaces
+> 0`; some Docker setups need `--security-opt seccomp=unconfined` or userns-remap).
+The wrapper **refuses to run** rather than risk an unconfined escape if they're
+unavailable — fall back to running lanes sequentially in the main checkout. The bundled
+devcontainer allows them.
 
 ## Use (two commands)
 
@@ -151,6 +159,9 @@ Each design choice is source-backed (full citations in
 | [DESIGN.md](DESIGN.md) | The design document — 12 enforced rules, failure-mode table, cited sources |
 | [skills/architect/SKILL.md](skills/architect/SKILL.md) | The architect role: hard rules + procedure |
 | [skills/architect/dispatch.md](skills/architect/dispatch.md) | `pi` dispatch commands, builder block, worktree fan-out, model switching, stall triage |
+| [skills/architect/dispatch-pi.sh](skills/architect/dispatch-pi.sh) | Self-healing single-lane dispatch wrapper — auto-kills + re-dispatches a stalled launch; `TOOLS=…` enforces a read-only run |
+| [skills/architect/confined-pi.sh](skills/architect/confined-pi.sh) | Confined parallel-lane wrapper — bind-mounts the worktree over the repo path (a lane can't escape into the main checkout); refuses to run without namespaces |
+| [skills/architect/postflight-check.sh](skills/architect/postflight-check.sh) | Mechanical post-flight checks: gates untampered, no builder commits, only declared files touched, no strays |
 | [skills/architect/research.md](skills/architect/research.md) | Slice-scale inline fact-check fan-out |
 | [skills/architect/HANDOFF.template.md](skills/architect/HANDOFF.template.md) | The repo-memory file |
 | [skills/architect-research/SKILL.md](skills/architect-research/SKILL.md) | Research orchestration: scout → design → fan out → verify → write |

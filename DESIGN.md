@@ -449,7 +449,11 @@ became a tactics library the orchestrator draws from when designing lanes:
 | Fabricated status reports | Every status claim audited against a tool result, both sides (R10) |
 | Gate-passing but unmergeable work | Judge reads the diff against spec intent, not gate output alone — METR: 38% test-pass, 0 mergeable as-is; cross-model review for high-stakes (R3, R4) |
 | Builder gaming visible gates | Gates frozen + read-only; architect-run verification; no builder iterate-against-gate feedback loops (ImpossibleBench: visible-test loops raised cheating 33%→38%) (R2, R3) |
+| Vacuous / self-referential test (green but tests nothing) | Behavioral gate must call the named production symbol; judge reads the test *body*, not just red/green — a test that re-derives its expected value from literals is INVALID (R2, R4) |
+| Shared data verified on the wrong copy | Gate asserts the consumer's real code path (not a headless equivalent); spec tells the builder to grep for other definitions of the datum first, so a fix doesn't leave a duplicate broken (R4) |
+| Unit-pass but real-medium-broken output | Live-render gate measured the way the medium measures + a live-path exercise of the running app before merge — the gap unit tests / typecheck / a static look all miss (R4) |
 | Stalled unattended runs | Liveness checks on the output stream; diagnose child process tree; kill narrowest first; explicit timeouts on every long command (dispatch.md) |
+| Hung builder at launch (no output, no CPU) | `dispatch-pi.sh` / `confined-pi.sh` watch output bytes + `/proc` CPU jiffies and auto-kill+re-dispatch with a fresh session id when both stay zero past a threshold (dispatch.md) |
 | Researcher context exhaustion | ≤5 subjects per lane; hard context rules in the preamble; bisect-and-redispatch dead lanes (lanes.md) |
 | Harness bloat / obsolescence | Thin declarative skill; per-model-generation pruning review (R12) |
 
