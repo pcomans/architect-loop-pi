@@ -7,6 +7,13 @@
 # still reads the diff against spec intent and runs the gate commands itself; this
 # only catches the mechanical violations.
 #
+# TRUST SCOPE: these checks read git state (diff/log/status) and so catch
+# COOPERATIVE or accidental violations — an over-eager builder that committed,
+# tampered with a gate, or wrote outside its lane. They are NOT adversarially
+# sound: a compromised builder that rewrites `.git` (refs, index, history,
+# hooks, excludes) can defeat them. For an adversarial guarantee, run this from
+# a separate trusted checkout, or ensure the builder cannot write git metadata.
+#
 # USAGE:
 #   postflight-check.sh <freeze-sha> <worktree-dir> <lane-branch> [declared-glob ...]
 #

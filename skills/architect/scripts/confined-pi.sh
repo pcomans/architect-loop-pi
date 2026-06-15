@@ -35,6 +35,15 @@
 #
 # NOTE: the watch loop is duplicated from dispatch-pi.sh on purpose, so each
 # script is self-contained / copy-pasteable; keep the two in sync.
+#
+# NOTE on git INSIDE the namespace: bind-mounting the worktree over the canonical
+# repo path shadows the main repo's `.git` directory with the worktree's `.git`
+# *gitfile* (`gitdir: <repo>/.git/worktrees/<name>`), whose target no longer
+# resolves once <repo>/.git is that file. So `git` run from INSIDE the confined
+# lane will not work. That is fine for this harness — builders are forbidden to
+# commit and never need git in-lane; all git-aware steps (post-flight tamper
+# checks, integration, merges) run from the main checkout OUTSIDE the namespace,
+# which is the trusted vantage point you want anyway. Don't add in-lane git steps.
 set -uo pipefail
 
 WT="${1:?worktree abs path required}"

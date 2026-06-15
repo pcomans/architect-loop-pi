@@ -201,6 +201,9 @@ Checks (c)–(e) plus a stray-file scan are mechanized by
 <freeze-sha> <worktree> <lane-branch>
 [declared-glob …]` prints PASS/FAIL per check and exits non-zero on any
 violation, so none gets skipped; the prose above is what each check means.
+These read git state, so they catch a cooperative/over-eager builder, not an
+adversarial one that rewrites `.git`; run from the main checkout (not inside a
+confined lane) so the vantage point is trusted.
 
 **Then integrate** (you do this — builders are forbidden from committing and you
 verify they didn't): commit each passing lane on its lane branch, merge lanes
