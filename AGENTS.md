@@ -7,7 +7,7 @@ the skills in `skills/architect/` and `skills/architect-research/`.
 ## Repo layout
 
 ```
-skills/architect/          # /architect skill — the build loop (incl. HARNESS-LEARNINGS.template.md)
+skills/architect/          # /architect skill — the build loop
 skills/architect-research/ # /architect-research skill — the research loop
 tests/validate_skills.py   # repo sanity checks
 install.sh / install.ps1   # skill + pi-search-hub installer
