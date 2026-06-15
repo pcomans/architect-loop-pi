@@ -453,7 +453,7 @@ became a tactics library the orchestrator draws from when designing lanes:
 | Shared data verified on the wrong copy | Gate asserts the consumer's real code path (not a headless equivalent); spec tells the builder to grep for other definitions of the datum first, so a fix doesn't leave a duplicate broken (R4) |
 | Unit-pass but real-medium-broken output | Live-render gate measured the way the medium measures + a live-path exercise of the running app before merge — the gap unit tests / typecheck / a static look all miss (R4) |
 | Stalled unattended runs | Liveness checks on the output stream; diagnose child process tree; kill narrowest first; explicit timeouts on every long command (dispatch.md) |
-| Hung builder at launch (no output, no CPU) | `dispatch-pi.sh` / `confined-pi.sh` watch output bytes + `/proc` CPU jiffies and auto-kill+re-dispatch with a fresh session id when both stay zero past a threshold (dispatch.md) |
+| Hung builder at launch (no output, no CPU) | `dispatch-pi.sh` / `confined-pi.sh` watch for progress each poll window — new output bytes or advancing `/proc` CPU (a per-window delta) — and auto-kill+re-dispatch with a fresh session id when neither moves past a threshold (dispatch.md) |
 | Researcher context exhaustion | ≤5 subjects per lane; hard context rules in the preamble; bisect-and-redispatch dead lanes (lanes.md) |
 | Harness bloat / obsolescence | Thin declarative skill; per-model-generation pruning review (R12) |
 

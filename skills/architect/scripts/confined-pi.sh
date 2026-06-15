@@ -12,8 +12,9 @@
 # canonical path, so lanes neither collide nor escape.
 #
 # It also carries the same stall watch as dispatch-pi.sh (an intermittent stuck
-# model connection — 0 output bytes AND 0 CPU — kill + relaunch with a fresh
-# "<sid>-rN" id). The namespace creates no PID namespace, so the inner pi is
+# model connection — no progress: no new output bytes and no CPU advance in a poll
+# window — kill + relaunch with a fresh "<sid>-rN" id). The namespace creates no
+# PID namespace, so the inner pi is
 # visible from outside; we find THIS lane's pi by walking the launched process's
 # own child tree (NOT bare `pgrep -x pi`, which would match every concurrent
 # lane's builder).

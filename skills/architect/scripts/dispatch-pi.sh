@@ -8,11 +8,13 @@
 # re-dispatch with a fresh session id, which streams within seconds. This wrapper
 # does that automatically so a stall doesn't cost a supervision cycle.
 #
-# WHAT IT DOES: launches `pi` in the background, samples output-bytes (the log)
-# and /proc CPU jiffies (the pi process). If BOTH are still zero past STALL_SECS
-# it kills `pi` and relaunches with a fresh "<session>-rN" id (up to MAX_RETRIES).
-# Once output or CPU appears it stops watching and just waits for completion,
-# bounded by an outer `timeout` (RUN_TIMEOUT). Returns pi's exit code.
+# WHAT IT DOES: launches `pi` in the background and watches for PROGRESS each poll
+# window — new output-bytes (the log) or advancing /proc CPU for the pi process,
+# measured as a per-window delta (cumulative jiffies aren't liveness: a process
+# that burns a few startup ticks then hangs would look alive forever). If neither
+# moves past STALL_SECS it kills `pi` and relaunches with a fresh "<session>-rN" id
+# (up to MAX_RETRIES). Once progress appears it stops watching and just waits for
+# completion, bounded by an outer `timeout` (RUN_TIMEOUT). Returns pi's exit code.
 #
 # USAGE:
 #   dispatch-pi.sh <session-id> <block-file> <out-file> [err-file] [thinking]

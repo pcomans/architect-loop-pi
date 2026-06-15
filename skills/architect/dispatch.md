@@ -127,9 +127,10 @@ container / single lane" path — use it knowingly, not by default for parallel 
 
 A worktree is a separate working directory on its own branch. Because pi has no
 sandbox, a misbehaving builder *could* run `git commit` inside its worktree — so
-the architect's post-flight checks `git log lane/<slice>-<NN> <freeze-sha>..` and
-treats any builder commit as a lane defect (re-dispatch). Nothing reaches a
-shared branch except through the architect's own merge.
+the architect's post-flight checks `git log <freeze-sha>..lane/<slice>-<NN>`
+(mechanized by `scripts/postflight-check.sh`) and treats any builder commit as a
+lane defect (re-dispatch). Nothing reaches a shared branch except through the
+architect's own merge.
 
 ### Integration (architect-only, after per-lane post-flight passes)
 
@@ -246,9 +247,10 @@ rather than hand-rolled long-running harnesses, which are the usual stall source
 A distinct stall hits at *launch*: a fresh dispatch intermittently draws a model
 connection that never streams (zero output bytes AND zero CPU) — not an outage, a
 stuck connection that a kill + re-dispatch with a new session id clears in seconds.
-`${CLAUDE_SKILL_DIR}/scripts/dispatch-pi.sh` automates that recovery: it watches output bytes
-+ `/proc` CPU jiffies and auto-kills+relaunches (`<sid>-rN`) if both stay zero past
-~75s, then waits to completion under an outer timeout. Route single-lane dispatches
+`${CLAUDE_SKILL_DIR}/scripts/dispatch-pi.sh` automates that recovery: it watches for
+*progress* each poll window — new output bytes or advancing `/proc` CPU (a per-window
+delta, since cumulative jiffies aren't liveness) — and auto-kills+relaunches
+(`<sid>-rN`) if neither moves for ~75s, then waits to completion under an outer timeout. Route single-lane dispatches
 through it so a launch stall self-heals without a supervision cycle;
 `scripts/confined-pi.sh` carries the same watch for parallel lanes. The manual child-process triage above
 remains the fallback for a *mid-run* stuck command (where the run is otherwise alive).
