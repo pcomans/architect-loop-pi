@@ -80,9 +80,19 @@ dispatch builders. `/architect-research` is for when you're still deciding
 
 ## /architect
 
-![/architect flow](assets/architect-flow.png)
+```mermaid
+flowchart LR
+    A["🧠 **Claude**\ndesigns the slice\nfreezes the gates"]
+    B["⚡ **pi / DeepSeek** ×1–4\nbuilds in parallel\nworktree 1 … N"]
+    C["🧠 **Claude**\nruns the gates\njudges · merges"]
+    R[("📁 **THE REPO**\nHANDOFF.md · gates/\nlanes/ · git")]
 
-One short Fable session per work block — judgment only, it never writes code:
+    A --> B --> C
+    A -. read/write .-> R
+    C -. read/write .-> R
+```
+
+One short Claude session per work block — judgment only, it never writes code:
 
 - **Spec + gates first.** Fable specs a one-PR slice, splits it into 1–4
   lanes whose file sets are checked for overlap, and commits the acceptance gates to
@@ -106,7 +116,16 @@ One short Fable session per work block — judgment only, it never writes code:
 
 ## /architect-research
 
-![/architect-research flow](assets/research-flow.png)
+```mermaid
+flowchart LR
+    A["⚡ **pi scout**\nmaps the topic"]
+    B["🧠 **Claude**\ndesigns the lanes"]
+    C["⚡ **pi** ×3–6\nresearches in parallel\nlane 1 … N"]
+    D["🧠 **Claude**\nverifies claims\nwrites the report"]
+    E["📄 **CITED REPORT**\nfeeds the build loop"]
+
+    A --> B --> C --> D --> E
+```
 
 Scout-first, like the production deep-research systems — no fixed lane
 taxonomy:
