@@ -35,7 +35,7 @@ SESSION="${1:?session-id required}"
 BLOCK="${2:?block file required}"
 OUT="${3:?out file required}"
 ERR="${4:-${OUT%.out}.err}"
-THINKING="${5:-high}"
+THINKING="${5:-xhigh}"
 MODEL="${ARCHITECT_BUILDER_MODEL:-deepseek/deepseek-v4-pro}"
 STALL_SECS="${STALL_SECS:-75}"
 MAX_RETRIES="${MAX_RETRIES:-3}"
@@ -47,6 +47,11 @@ tools_arg=()
 [ -n "${TOOLS:-}" ] && tools_arg=(--tools "$TOOLS")
 
 jiffies() { awk '{print $14+$15}' "/proc/$1/stat" 2>/dev/null || echo 0; }
+kill_tree() {
+  local root="$1" c
+  for c in $(pgrep -P "$root" 2>/dev/null); do kill_tree "$c"; done
+  kill -9 "$root" 2>/dev/null
+}
 
 attempt=0
 while :; do
@@ -73,7 +78,7 @@ while :; do
     if [ "$bytes" -gt 0 ] || [ "$j" -gt 0 ]; then streaming=1; break; fi
     if [ "$waited" -ge "$STALL_SECS" ]; then
       echo "[dispatch-pi] STALL at ${waited}s (0 bytes, 0 jiffies) — killing + retrying" >&2
-      pgrep -x pi | xargs -r kill -9; kill "$pid" 2>/dev/null
+      kill_tree "$pid"
       killed=1; break
     fi
   done
