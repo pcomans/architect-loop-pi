@@ -106,7 +106,7 @@ while :; do
   sleep 3
   pipid="$(find_inner_pi "$pid" || true)"; [ -z "$pipid" ] && pipid="$pid"
 
-  streaming=0; killed=0; waited=3
+  streaming=0; killed=0; waited=3; last_rc=""
   while kill -0 "$pid" 2>/dev/null; do
     sleep "$POLL_SECS"; waited=$((waited+POLL_SECS))
     # re-resolve the pi pid in case it wasn't up yet on the first probe
@@ -132,10 +132,20 @@ while :; do
       exit $rc
     fi
     echo "[confined-pi] run exited at ${waited}s with no output (exit $rc) — retrying" >&2
+    last_rc=$rc
   fi
 
   attempt=$((attempt+1))
   if [ "$attempt" -gt "$MAX_RETRIES" ]; then
+    # Distinguish a genuine stall (process stayed alive past STALL_SECS, killed)
+    # from a deterministic fast failure (pi exited fast non-zero with no stdout —
+    # bad key / unknown model / bad flag). Only the former is an API-health stall;
+    # for the latter surface the real exit code and the stderr that explains it.
+    if [ -n "$last_rc" ] && [ "$last_rc" -ne 0 ]; then
+      echo "[confined-pi] gave up after $MAX_RETRIES retries — last attempt exited fast (exit $last_rc) with no stdout; this looks like a hard failure (bad key / model / flag), not a stall. Last stderr:" >&2
+      tail -n 20 "$ERRLOG" >&2 2>/dev/null || true
+      exit "$last_rc"
+    fi
     echo "[confined-pi] gave up after $MAX_RETRIES retries (persistent stall) — check API health with a low-thinking canary" >&2
     exit 124
   fi
