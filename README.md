@@ -82,10 +82,17 @@ dispatch builders. `/architect-research` is for when you're still deciding
 
 ```mermaid
 flowchart LR
-    A["🧠 **Claude**\ndesigns the slice\nfreezes the gates"]
-    B["⚡ **pi / DeepSeek** ×1–4\nbuilds in parallel\nworktree 1 … N"]
-    C["🧠 **Claude**\nruns the gates\njudges · merges"]
-    R[("📁 **THE REPO**\nHANDOFF.md · gates/\nlanes/ · git")]
+    A["`🧠 **Claude**
+    designs the slice
+    freezes the gates`"]
+    B["`⚡ **pi / DeepSeek** ×1–4
+    builds in parallel
+    worktree 1 … N`"]
+    C["`🧠 **Claude**
+    runs the gates
+    judges · merges`"]
+    R(["`📁 **THE REPO**
+    HANDOFF.md · gates/ · lanes/ · git`"])
 
     A --> B --> C
     A -. read/write .-> R
@@ -118,11 +125,18 @@ One short Claude session per work block — judgment only, it never writes code:
 
 ```mermaid
 flowchart LR
-    A["⚡ **pi scout**\nmaps the topic"]
-    B["🧠 **Claude**\ndesigns the lanes"]
-    C["⚡ **pi** ×3–6\nresearches in parallel\nlane 1 … N"]
-    D["🧠 **Claude**\nverifies claims\nwrites the report"]
-    E["📄 **CITED REPORT**\nfeeds the build loop"]
+    A["`⚡ **pi scout**
+    maps the topic`"]
+    B["`🧠 **Claude**
+    designs the lanes`"]
+    C["`⚡ **pi** ×3–6
+    researches in parallel
+    lane 1 … N`"]
+    D["`🧠 **Claude**
+    verifies claims
+    writes the report`"]
+    E(["`📄 **CITED REPORT**
+    feeds the build loop`"])
 
     A --> B --> C --> D --> E
 ```
