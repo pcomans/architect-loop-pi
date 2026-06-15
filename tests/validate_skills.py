@@ -13,6 +13,7 @@ Run: python tests/validate_skills.py   (exit 0 = pass)
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -21,7 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SKILLS = ROOT / "skills"
 MAX_DESC = 1024
 REQUIRED_SIBLINGS = {
-    "architect": ["dispatch.md", "research.md", "HANDOFF.template.md"],
+    "architect": ["dispatch.md", "research.md", "templates/HANDOFF.template.md"],
     "architect-research": ["lanes.md"],
 }
 errors: list[str] = []
@@ -58,7 +59,7 @@ def check_siblings(skill_dir: Path) -> None:
         if not (skill_dir / sibling).exists():
             errors.append(f"{skill_dir.name}: required file {sibling} missing")
     skill_md = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
-    for ref in re.findall(r"`([\w][\w.-]*\.md)`", skill_md):
+    for ref in re.findall(r"`([\w][\w./-]*\.md)`", skill_md):
         if ref in ("SKILL.md", "AGENTS.md", "CLAUDE.md", "HANDOFF.md", "CONVENTIONS.md",
                    "PLAN.md", "MEMORY.md", "README.md", "GEMINI.md"):
             continue  # repo-of-use files, not siblings of the skill
@@ -68,6 +69,27 @@ def check_siblings(skill_dir: Path) -> None:
             continue
         if not (skill_dir / ref).exists():
             errors.append(f"{skill_dir.name}: SKILL.md references `{ref}` which doesn't exist")
+
+
+def check_scripts() -> None:
+    """Any `*.sh` the architect docs reference must ship in scripts/ and be
+    executable (install.sh copies skills/*/ recursively, preserving the +x bit)."""
+    arch = SKILLS / "architect"
+    if not arch.is_dir():
+        return
+    referenced: set[str] = set()
+    for doc in ("dispatch.md", "SKILL.md"):
+        p = arch / doc
+        if p.exists():
+            referenced |= set(re.findall(r"`[\w${}/.-]*?([\w-]+\.sh)`", p.read_text(encoding="utf-8")))
+    for name in sorted(referenced):
+        # scripts live in scripts/; tolerate a flat fallback for older refs
+        target = next((c for c in (arch / "scripts" / name, arch / name) if c.exists()),
+                      arch / "scripts" / name)
+        if not target.exists():
+            errors.append(f"architect: script `{name}` referenced but scripts/{name} is missing")
+        elif not os.access(target, os.X_OK):
+            errors.append(f"architect: script {target.name} is not executable (chmod +x)")
 
 
 def check_fences(path: Path) -> None:
@@ -93,6 +115,7 @@ def main() -> int:
         check_siblings(d)
         for md in d.glob("*.md"):
             check_fences(md)
+    check_scripts()
     for doc in ("README.md", "DESIGN.md"):
         p = ROOT / doc
         if p.exists():

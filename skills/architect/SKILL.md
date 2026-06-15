@@ -64,7 +64,7 @@ commands and the builder block template: `dispatch.md` next to this file.
   dispatch in a new environment is a canary — confirm it starts cleanly, picks up
   the model, and reads the `@block.md` prompt before fanning out.
 - Read `docs/HANDOFF.md` in full plus every `docs/gates/` file it references.
-  If missing, create both from `HANDOFF.template.md` (next to this file), fill
+  If missing, create both from `templates/HANDOFF.template.md` (next to this file), fill
   the header from the repo, ask the human only for what isn't derivable.
   Keep the handoff a short table of contents (~150 lines): TL;DR + pointers
   to gates/lanes/docs; archive finished-slice detail out of it each session —
@@ -86,6 +86,9 @@ output against the verbatim frozen gate text → **PASS / FAIL / INVALID**
 Gate-pass is necessary, not sufficient: read the diff against the spec's
 intent before the verdict — agents' test-passing changes are frequently
 unmergeable, and iterating against visible tests is a known gaming vector.
+Read the test *body*, not just its red/green: a green test that re-derives its
+expected value from literals and never imports the production symbol is vacuous —
+it proves nothing about the shipped code path.
 Then one slice-level call: **KILL / CONTINUE**, with the single decisive reason.
 For high-stakes slices (schema/API/persistence/security), add a cross-model
 review before the verdict: a fresh read-only `pi` reviewer over the diff
@@ -93,7 +96,14 @@ review before the verdict: a fresh read-only `pi` reviewer over the diff
 prompted to break confidence in the change — calibrated to flag only
 correctness/requirement/invariant gaps with file:line evidence, no style.
 (Builder and judge are already different labs — DeepSeek vs Claude — so this is
-an extra adversarial pass, not the only cross-vendor check.)
+an extra adversarial pass, not the only cross-vendor check.) For
+fidelity-to-an-external-spec slices (matching a real API/data source/standard) the
+cross-model review is **mandatory**, not optional — gates prove mechanics, the
+adversarial pass catches spec-intent gaps. For **rendered/live** (UI/playtest)
+gates, route the first-pass eyeball to a cheap builder-model judge (`dispatch.md`):
+it returns an independent verdict; you keep a short taste/fidelity/regression
+spot-check — it nails the explicit gate questions but misses off-gate regressions
+it wasn't asked about, so the backstop is not redundant.
 
 ### 3. Research fan-out (optional — most slices skip this)
 
@@ -139,7 +149,21 @@ One-PR-sized. The spec is the full delegation contract, self-contained:
   format, and boundaries. Most slices are one lane — fan out only when the
   work is genuinely parallel.
 - **Gates** — exact commands + thresholds, written to `docs/gates/<slice>.md`,
-  committed now. This freeze commit is the last thing before dispatch.
+  committed now (this freeze commit is the last thing before dispatch). Write gates
+  that can't pass vacuously:
+  - A behavioral gate must **call the production code** and name the function under
+    test — a test that re-derives its expected value from literals proves nothing.
+  - **Stateful/escalating** behavior needs **multi-turn** assertions, not just a
+    first-step check.
+  - When the slice touches **shared data or a registry**, assert the **consumer's
+    real path** (drive the actual code path, not a headless equivalent) and tell the
+    builder to grep for other definitions of it first — a fix in one copy leaves
+    duplicates silently broken.
+  - For **rendered output** (TUI/CLI/web), add a **live-render gate** measured the way
+    the real medium measures (unit tests pass on layouts the medium breaks); for
+    UI/run-flow slices also require a **live-path exercise** — drive the running app
+    through full user paths before merge — which catches integration/runtime breakage
+    unit tests, typecheck, and a static look all miss.
 - **Effort call** — default `xhigh`; downgrade a lane to `high` when it is
   routine and tightly specified (record which and why in the spec).
 
@@ -171,6 +195,15 @@ log), (c) `git diff` on `docs/gates/` is clean in that worktree, (d)
 set** — an out-of-bounds write fails the lane, (e) `git log <freeze>..` on the
 lane branch shows **no builder commits** (the "don't commit" rule is verified
 here, not sandbox-enforced — a builder commit fails the lane).
+
+Checks (c)–(e) plus a stray-file scan are mechanized by
+`${CLAUDE_SKILL_DIR}/scripts/postflight-check.sh` — `postflight-check.sh
+<freeze-sha> <worktree> <lane-branch>
+[declared-glob …]` prints PASS/FAIL per check and exits non-zero on any
+violation, so none gets skipped; the prose above is what each check means.
+These read git state, so they catch a cooperative/over-eager builder, not an
+adversarial one that rewrites `.git`; run from the main checkout (not inside a
+confined lane) so the vantage point is trusted.
 
 **Then integrate** (you do this — builders are forbidden from committing and you
 verify they didn't): commit each passing lane on its lane branch, merge lanes

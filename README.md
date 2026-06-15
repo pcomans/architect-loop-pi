@@ -20,7 +20,7 @@ anything is integrated.
 
 ```bash
 export DEEPSEEK_API_KEY=sk-...   # forwarded into the container automatically
-devpod up https://github.com/pcomans-bot/architect-loop-pi --ide none
+devpod up https://github.com/pcomans/architect-loop-pi --ide none
 ```
 
 The devcontainer handles Node 22, Python, `pi`, `install.sh`, `pip install ddgs`, and key forwarding automatically.
@@ -35,7 +35,7 @@ The devcontainer handles Node 22, Python, `pi`, `install.sh`, `pip install ddgs`
 **Option B — Manual**
 
 ```bash
-git clone https://github.com/pcomans-bot/architect-loop-pi
+git clone https://github.com/pcomans/architect-loop-pi
 cd architect-loop-pi
 npm i -g --ignore-scripts @earendil-works/pi-coding-agent@latest  # the builder (pi)
 ./install.sh                                                      # skills + pi-search-hub  (Windows: .\install.ps1)
@@ -63,6 +63,10 @@ automatically; on a host machine it's opt-in (it changes your global npm config)
 Raise the number for more seasoning — but note ≥5 days currently pulls an older pi
 0.78.x, since 0.79.x is still recent.
 
+**Confined parallel lanes** use `confined-pi.sh` — see [Isolation model](#isolation-model)
+below. The devcontainer allows it; some Docker setups need
+`--security-opt seccomp=unconfined` or userns-remap.
+
 ## Use (two commands)
 
 ```
@@ -76,9 +80,26 @@ dispatch builders. `/architect-research` is for when you're still deciding
 
 ## /architect
 
-![/architect flow](assets/architect-flow.png)
+```mermaid
+flowchart LR
+    A["`🧠 **Claude**
+    designs the slice
+    freezes the gates`"]
+    B["`⚡ **pi / DeepSeek** ×1–4
+    builds in parallel
+    worktree 1 … N`"]
+    C["`🧠 **Claude**
+    runs the gates
+    judges · merges`"]
+    R(["`📁 **THE REPO**
+    HANDOFF.md · gates/ · lanes/ · git`"])
 
-One short Fable session per work block — judgment only, it never writes code:
+    A --> B --> C
+    A -. read/write .-> R
+    C -. read/write .-> R
+```
+
+One short Claude session per work block — judgment only, it never writes code:
 
 - **Spec + gates first.** Fable specs a one-PR slice, splits it into 1–4
   lanes whose file sets are checked for overlap, and commits the acceptance gates to
@@ -102,7 +123,23 @@ One short Fable session per work block — judgment only, it never writes code:
 
 ## /architect-research
 
-![/architect-research flow](assets/research-flow.png)
+```mermaid
+flowchart LR
+    A["`⚡ **pi scout**
+    maps the topic`"]
+    B["`🧠 **Claude**
+    designs the lanes`"]
+    C["`⚡ **pi** ×3–6
+    researches in parallel
+    lane 1 … N`"]
+    D["`🧠 **Claude**
+    verifies claims
+    writes the report`"]
+    E(["`📄 **CITED REPORT**
+    feeds the build loop`"])
+
+    A --> B --> C --> D --> E
+```
 
 Scout-first, like the production deep-research systems — no fixed lane
 taxonomy:
@@ -151,11 +188,16 @@ Each design choice is source-backed (full citations in
 | [DESIGN.md](DESIGN.md) | The design document — 12 enforced rules, failure-mode table, cited sources |
 | [skills/architect/SKILL.md](skills/architect/SKILL.md) | The architect role: hard rules + procedure |
 | [skills/architect/dispatch.md](skills/architect/dispatch.md) | `pi` dispatch commands, builder block, worktree fan-out, model switching, stall triage |
+| [skills/architect/scripts/dispatch-pi.sh](skills/architect/scripts/dispatch-pi.sh) | Self-healing single-lane dispatch wrapper — auto-kills + re-dispatches a stalled launch; `TOOLS=…` enforces a read-only run |
+| [skills/architect/scripts/confined-pi.sh](skills/architect/scripts/confined-pi.sh) | Confined parallel-lane wrapper — bind-mounts the worktree over the repo path (a lane can't escape into the main checkout); refuses to run without namespaces |
+| [skills/architect/scripts/postflight-check.sh](skills/architect/scripts/postflight-check.sh) | Mechanical post-flight checks: gates untampered, no builder commits, only declared files touched, no strays |
 | [skills/architect/research.md](skills/architect/research.md) | Slice-scale inline fact-check fan-out |
-| [skills/architect/HANDOFF.template.md](skills/architect/HANDOFF.template.md) | The repo-memory file |
+| [skills/architect/templates/HANDOFF.template.md](skills/architect/templates/HANDOFF.template.md) | The repo-memory file |
 | [skills/architect-research/SKILL.md](skills/architect-research/SKILL.md) | Research orchestration: scout → design → fan out → verify → write |
 | [skills/architect-research/lanes.md](skills/architect-research/lanes.md) | Scout block + source-class tactics library with verified endpoints |
 | [tests/validate_skills.py](tests/validate_skills.py) | Repo sanity checks (frontmatter limits, links, fences) |
+| [skills/architect/templates/HARNESS-LEARNINGS.template.md](skills/architect/templates/HARNESS-LEARNINGS.template.md) | Template for capturing harness-level lessons during a run; contribute completed logs back as a PR |
+| [AGENTS.md](AGENTS.md) | Instructions for agents/contributors working on this repo; lists known harness lessons |
 
 ## FAQ
 
@@ -179,13 +221,79 @@ can paste it into an interactive `pi` session instead.
 **Why two skills?** Research-grade fan-out costs ~15× chat-level tokens — it
 should be a deliberate act, not a side-effect of the build loop.
 
+## Isolation model
+
+`pi` has no built-in sandbox. For single-lane runs this just means trusting
+the container (which the devcontainer provides). For **parallel lanes** it
+creates a subtle trap: `cd <worktree> && pi` is *not* real isolation.
+
+**The problem:** if the builder block references absolute paths — e.g.
+`@/home/user/myrepo/.architect/block.md` — the builder treats the absolute
+path as its project root and writes to the *main checkout*, not the worktree.
+Two parallel lanes then corrupt the same tree.
+
+**The fix — `confined-pi.sh`:** wraps each lane in a Linux user+mount
+namespace (`unshare -Urm`) and bind-mounts the worktree *over* the canonical
+repo path before starting `pi`. Even absolute `/home/user/myrepo/...` writes
+resolve into the worktree; the real checkout is unreachable. Each lane gets
+its own namespace at the same canonical path, so lanes neither collide nor
+escape.
+
+```
+lane A:  worktree-A  →  bind-mount over /repo  →  pi sees /repo = worktree-A
+lane B:  worktree-B  →  bind-mount over /repo  →  pi sees /repo = worktree-B
+main checkout:  untouched throughout
+```
+
+`confined-pi.sh` **refuses to run** (non-zero exit, clear message) if
+unprivileged user namespaces are unavailable
+(`/proc/sys/user/max_user_namespaces > 0`). The safe fallback is running
+lanes **sequentially** in the main checkout using the plain dispatch commands
+in `dispatch.md`.
+
+## Harness learnings
+
+Running the loop surfaces harness-level lessons (dispatch patterns, stall
+behaviour, isolation edge cases) that are not project-specific. Capture them
+as you go using the template in
+[skills/architect/templates/HARNESS-LEARNINGS.template.md](skills/architect/templates/HARNESS-LEARNINGS.template.md) and
+contribute your completed log back as a PR — surviving entries are distilled
+into the skills so every future run benefits.
+
+See [AGENTS.md](AGENTS.md) for what's already been learned and the
+no-jargon rule for entries.
+
+## Changes from upstream
+
+This is a fork of
+[DanMcInerney/architect-loop](https://github.com/DanMcInerney/architect-loop).
+The loop shape and discipline are unchanged. What differs:
+
+| Area | Upstream (DanMcInerney) | This fork |
+|---|---|---|
+| **Builder CLI** | Codex (OpenAI CLI) | `pi` (earendil-works) |
+| **Builder model** | GPT-5.5 via ChatGPT subscription | DeepSeek V4 via API key (swappable) |
+| **Cost model** | Flat-rate ChatGPT sub | Metered — cheap enough that cost isn't a constraint |
+| **Sandbox** | Codex has a built-in sandbox | None — isolation is the container + `confined-pi.sh` for parallel lanes |
+| **web_search** | Native Codex tool | `pi-search-hub` package (Tavily or keyless DuckDuckGo) |
+| **Stall recovery** | Manual triage | `dispatch-pi.sh` auto-detects 0-byte/0-CPU stalls and re-dispatches |
+| **Parallel isolation** | Worktree + Codex sandbox | `confined-pi.sh` namespace bind-mount (cd+worktree alone is not sufficient) |
+| **Post-flight** | Manual checks | `postflight-check.sh` mechanises gate tamper / boundary / no-commit checks |
+| **Learnings** | — | `skills/architect/templates/HARNESS-LEARNINGS.template.md` + contribution path |
+
+The `dispatch-pi.sh`, `confined-pi.sh`, and `postflight-check.sh` scripts,
+and the lessons folded into SKILL.md and dispatch.md, all came from the first
+real run of this fork. They address failure modes that didn't arise with Codex
+because Codex's sandbox handled isolation and its dispatch path was more stable.
+
 ## Origin
 
 The original idea came from [this X post by @jumperz](https://x.com/jumperz/status/2065454404623384859)
-about using Fable with Opus subagents. I built architect-loop because I couldn't
-find an easy way to run that pattern, and because it seemed useful to add a few
-extra operational best practices on top of what Fable can already do when calling
-Opus subagents.
+about using Fable with Opus subagents. [DanMcInerney](https://github.com/DanMcInerney/architect-loop)
+built architect-loop to make that pattern easy to run. This fork swaps the
+builder from Codex to `pi` + DeepSeek, adds the operational hardening that
+`pi`'s lack of a sandbox requires, and establishes a learnings-contribution
+path so runs feed back into the harness.
 
 ## License
 
