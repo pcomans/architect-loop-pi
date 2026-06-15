@@ -1,7 +1,7 @@
 {
   "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
   "features": { "ghcr.io/devcontainers/features/python:1": {} },
-  "postCreateCommand": "npm config set min-release-age 4 && npm i -g --ignore-scripts @earendil-works/pi-coding-agent && chmod +x install.sh && ./install.sh && pip install ddgs && curl -fsSL https://claude.ai/install.sh | bash",
+  "postCreateCommand": "npm config set min-release-age 4 && npm i -g --ignore-scripts @earendil-works/pi-coding-agent && chmod +x install.sh && ./install.sh && pip install ddgs && curl -fsSL https://claude.ai/install.sh -o /tmp/claude-install.sh && bash /tmp/claude-install.sh",
   "remoteEnv": {
     "DEEPSEEK_API_KEY": "${localEnv:DEEPSEEK_API_KEY}",
     "SEARCH_TAVILY_API_KEY": "${localEnv:SEARCH_TAVILY_API_KEY}",

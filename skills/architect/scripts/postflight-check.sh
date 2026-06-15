@@ -22,6 +22,8 @@
 #     spans '/' (a subtree glob like "src/<area>/*" matches nested files too).
 #
 # ENV: GATES_DIR (default "docs/gates") — the frozen-gates path to tamper-check.
+#      CHECK_IGNORED=1 — also fail on gitignored stray files (off by default;
+#        ignored files can't reach the merge and --ignored noises on build output).
 #
 # Prints PASS/FAIL per check; exits non-zero if any check fails.
 set -uo pipefail
@@ -78,19 +80,36 @@ else
 fi
 
 # 3 + 4. Boundary + stray files ------------------------------------------------
-# Parse porcelain; for renames take the destination path; best-effort unquote.
+# Parse porcelain. A rename/copy reports `old -> new`: BOTH sides are touched
+# (the source is deleted/moved), so check both against the declared set —
+# checking only the destination lets `git mv <out-of-bounds> <in-bounds>` slip a
+# write to an undeclared file past the boundary gate. Best-effort unquote.
+#
+# Ignored files are off by default: they can't reach the integration branch
+# (the architect merges tracked changes; ignored debris dies with the throwaway
+# worktree), and --ignored would false-positive on legitimate build output. Set
+# CHECK_IGNORED=1 for strict hygiene — then ignored files (`!!`) count as strays.
+ignored_flag=()
+[ -n "${CHECK_IGNORED:-}" ] && ignored_flag=(--ignored)
+unq() {  # best-effort unquote a porcelain path
+  local p="$1"; case "$p" in \"*\") p="${p%\"}"; p="${p#\"}";; esac; printf '%s' "$p"
+}
 declare -a out_of_bounds=() strays=()
 while IFS= read -r line; do
   [ -z "$line" ] && continue
   st="${line:0:2}"
-  path="${line:3}"
-  case "$path" in *" -> "*) path="${path##* -> }";; esac
-  case "$path" in \"*\") path="${path%\"}"; path="${path#\"}";; esac
-  if ! matches_any "$path"; then
-    out_of_bounds+=("$path")
-    case "$st" in '??'*|'??') strays+=("$path");; esac
-  fi
-done < <(git -C "$WT" status --porcelain 2>/dev/null)
+  rest="${line:3}"
+  case "$rest" in
+    *" -> "*) paths=("$(unq "${rest%% -> *}")" "$(unq "${rest##* -> }")");;
+    *)        paths=("$(unq "$rest")");;
+  esac
+  for path in "${paths[@]}"; do
+    if ! matches_any "$path"; then
+      out_of_bounds+=("$path")
+      case "$st" in '??'*|'!!'*) strays+=("$path");; esac
+    fi
+  done
+done < <(git -C "$WT" status --porcelain "${ignored_flag[@]+"${ignored_flag[@]}"}" 2>/dev/null)
 
 if [ "${#GLOBS[@]}" -eq 0 ]; then
   echo "NOTE  3/4. no declared globs given — skipping boundary check (pass globs to enable)"

@@ -26,8 +26,13 @@
 #   confined-pi.sh <worktree_abs> <canonical_repo_path> <block_relpath> \
 #                  <session_id> <log_abs> [thinking]
 #   - <block_relpath> must exist INSIDE the worktree (e.g. .architect/block.md).
-#   - <log_abs> MUST be OUTSIDE <canonical_repo_path> so it stays readable from the
-#     main checkout; the matching .err is derived. (.jsonl suffix expected.)
+#   - <log_abs> is written by the OUTER shell (the `> "$LOG"` redirect runs before
+#     unshare), so it lands in the real filesystem and stays readable from the main
+#     checkout — it does NOT have to be outside the repo. Putting it under the main
+#     checkout's own scratch dir (e.g. <repo-root>/.architect/wt/<sid>.last-run.jsonl,
+#     as dispatch.md recommends) is fine; just keep it OUT of the bind-mounted
+#     worktree's own tracked tree so it isn't mistaken for a lane change. The
+#     matching .err is derived. (.jsonl suffix expected.)
 #
 # ENV: TOOLS (passed to `pi --tools` if set, e.g. read,grep,find,ls for a confined
 #   reviewer), ARCHITECT_BUILDER_MODEL (default deepseek/deepseek-v4-pro),
